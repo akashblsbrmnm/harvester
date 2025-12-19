@@ -610,7 +610,7 @@ int rbus_getMloAssociatedDeviceDiagnosticResult(int index, mlo_assoc_dev_t **mlo
 
     CcspHarvesterTrace(("RDK_LOG_INFO, Harvester %s: mloDevDataStr is %s\n", __FUNCTION__, mloDevDataStr));
     jsonVal = cJSON_Parse(mloDevDataStr);
-    
+
     /* We can free the string if it was from file, as cJSON_Parse makes a copy/parses it */
     if (mloDevDataStr)
     {

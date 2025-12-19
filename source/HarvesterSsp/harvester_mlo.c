@@ -211,7 +211,6 @@ int regHarvesterDataModel()
         CcspHarvesterTrace(("RDK_LOG_ERROR, %s: rbus_regDataElements failed with error %d\n", __FUNCTION__, ret));
         return -1;
     }
-    
     return 0;
 }
 

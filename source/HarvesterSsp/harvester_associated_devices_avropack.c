@@ -155,7 +155,7 @@ avro_writer_t prepare_writer()
     fseek( fp , 0L , SEEK_END);
     lSize = ftell( fp );
     /* CID: 69140 Argument cannot be negative*/
-    if (lSize < 0) 
+    if (lSize < 0)
         fclose(fp), fputs("lSize is negative value", stderr), exit(1);
 
     /*back to the start of the file*/
@@ -965,7 +965,7 @@ avro_writer_t prepare_mlo_writer()
     /* seek through file and get file size*/
     fseek( fp , 0L , SEEK_END);
     lSize = ftell( fp );
-    if (lSize < 0) 
+    if (lSize < 0)
         fclose(fp), fputs("lSize is negative value", stderr), exit(1);
 
     /*back to the start of the file*/
@@ -1007,7 +1007,7 @@ avro_writer_t prepare_mlo_writer()
   rc = memset_s(&AvroSerializedBuf[0], sizeof(AvroSerializedBuf), 0, sizeof(AvroSerializedBuf));
   ERR_CHK(rc);
 
-  AvroSerializedBuf[0] = MAGIC_NUMBER; 
+  AvroSerializedBuf[0] = MAGIC_NUMBER;
 
   rc = memcpy_s(&AvroSerializedBuf[ MAGIC_NUMBER_SIZE ], sizeof(AvroSerializedBuf)-MAGIC_NUMBER_SIZE, UUID, sizeof(UUID));
   if(rc != EOK)
@@ -1024,8 +1024,7 @@ avro_writer_t prepare_mlo_writer()
 void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *head, char* ServiceType)
 {
   int j, k = 0;
-  //uint8_t* b64buffer =  NULL;
-  //size_t decodesize = 0;
+
   int numElements = 0;
   unsigned long numDevices = 0;
   mlo_assoc_dev_t *ps = NULL;
@@ -1033,7 +1032,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   avro_writer_t writer;
   char * serviceName = "harvester";
   char * dest = "event:raw.kestrel.reports.InterfaceDevicesWifi";
-  char * contentType = "avro/binary"; 
+  char * contentType = "avro/binary";
   uuid_t transaction_id;
   char trans_id[37];
   errno_t rc = -1;
@@ -1084,7 +1083,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   avro_value_set_long(&optional, tstamp_av_main );
 
   // uuid - fixed 16 bytes
-  uuid_generate_random(transaction_id); 
+  uuid_generate_random(transaction_id);
   uuid_unparse(transaction_id, trans_id);
 
   avro_value_get_by_name(&adr, "header", &adrField, NULL);
@@ -1256,7 +1255,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
                     if(strcmp(link->band, "2G") == 0 || strstr(link->band, "2.4") != NULL) band_sym = "_2_4GHz";
                     else if(strcmp(link->band, "5G") == 0) band_sym = "_5GHz";
                     else if(strcmp(link->band, "6G") == 0) band_sym = "_6GHz";
-                    
+
                     avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), band_sym));
                 }
 
@@ -1278,11 +1277,11 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
                 // interface_parameters
                 avro_value_get_by_name(&link_record, "interface_parameters", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
-                
+
                 // operating standard
                 avro_value_get_by_name(&optional, "operating_standard", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
-                if ( strlen(link->cli_OperatingStandard ) == 0 )      
+                if ( strlen(link->cli_OperatingStandard ) == 0 )
                     avro_value_set_null(&optional);
                 else
                     avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), link->cli_OperatingStandard));
@@ -1316,22 +1315,22 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
                     avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), "_5GHz" ));
                 else if(strcmp(link->band, "6G") == 0)
                     avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), "_6GHz" ));
-                else 
-                    avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), "_5GHz" )); 
+                else
+                    avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), "_5GHz" ));
 
                 // channel
                 avro_value_get_by_name(&link_record, "interface_parameters", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
                 avro_value_get_by_name(&optional, "channel", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
-                avro_value_set_int(&optional, 0); 
+                avro_value_set_int(&optional, 0);
 
                 // ssid
                 avro_value_get_by_name(&link_record, "interface_parameters", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
                 avro_value_get_by_name(&optional, "ssid", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
-                avro_value_set_string(&optional, "MLO"); 
+                avro_value_set_string(&optional, "MLO");
 
                 // interface_metrics
                 avro_value_get_by_name(&link_record, "interface_metrics", &linkField, NULL);
@@ -1402,7 +1401,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
                 } else {
                      avro_value_set_branch(&linkField, 1, &optional);
                      // Now optional is the ARRAY
-                     
+
                      if (strstr( link->cli_InterferenceSources, "MicrowaveOven") != NULL ) {
                         avro_value_append(&optional, &interferenceSource, NULL);
                         avro_value_set_string(&interferenceSource,"MicrowaveOven");
@@ -1445,7 +1444,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
                 avro_value_get_by_name(&optional, "tx_rate", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
                 avro_value_set_float(&optional, (float)link->cli_LastDataUplinkRate);
-                
+
                 // signal_strength
                 avro_value_get_by_name(&link_record, "interface_metrics", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
@@ -1466,7 +1465,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
                 avro_value_get_by_name(&optional, "snr", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
                 avro_value_set_float(&optional, (float)link->cli_SNR);
-                
+
                 // bytes_sent
                 avro_value_get_by_name(&link_record, "interface_metrics", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
@@ -1494,7 +1493,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
                 avro_value_get_by_name(&optional, "packets_received", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
                 avro_value_set_long(&optional, link->cli_PacketsReceived);
-                
+
                 // errors
                 avro_value_get_by_name(&link_record, "interface_metrics", &linkField, NULL);
                 avro_value_set_branch(&linkField, 1, &optional);
@@ -1514,25 +1513,112 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
       ptr = ptr->next;
   }
 
-  if ( avro_writer_tell(writer) > 0)
+  /* Calculate serialized size safely to avoid buffer overflow */
+  size_t avro_size = 0;
+  if (avro_value_sizeof(&adr, &avro_size))
   {
-      if((long)avro_writer_tell(writer) > (long)(sizeof(AvroSerializedBuf) - MAGIC_NUMBER_SIZE - SCHEMA_ID_LENGTH))
-      {
-           CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s : Avro write memory length is greater than the size of AvroSerializedBuf \n", __FUNCTION__ ));
-      }
-      else
-      {
-          AvroSerializedSize =  MAGIC_NUMBER_SIZE + SCHEMA_ID_LENGTH + avro_writer_tell(writer);
-          CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : Sending to WebPA, size = %d \n", __FUNCTION__, (int)AvroSerializedSize));
-          //Send to WebPA
-          sendWebpaMsg ( serviceName, dest, trans_id, contentType, AvroSerializedBuf, AvroSerializedSize );
-          CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : Sent to WebPA \n", __FUNCTION__));
-      }
+    CcspHarvesterTrace(("RDK_LOG_ERROR, %s: avro_value_sizeof failed\n", __FUNCTION__));
+    avro_value_decref(&adr);
+    avro_writer_free(writer);
+    return;
   }
 
+  size_t framing = MAGIC_NUMBER_SIZE + SCHEMA_ID_LENGTH;
+  size_t total_expected = avro_size + framing;
+
+  if (total_expected > sizeof(AvroSerializedBuf))
+  {
+      CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s : Serialized size %zu exceeds buffer %zu. Dropping report.\n", __FUNCTION__, total_expected, sizeof(AvroSerializedBuf)));
+      avro_value_decref(&adr);
+      avro_writer_free(writer);
+      return;
+  }
+
+  if (avro_value_write(writer, &adr))
+  {
+    CcspHarvesterTrace(("RDK_LOG_ERROR, %s: avro_value_write failed\n", __FUNCTION__));
+    avro_value_decref(&adr);
+    avro_writer_free(writer);
+    return;
+  }
+
+  /* Verify what was actually written matches expectations */
+  int64_t written_raw = avro_writer_tell(writer);
+  if (written_raw <= 0)
+  {
+    CcspHarvesterTrace(( "RDK_LOG_ERROR, %s: Avro write failed or empty. Bytes written: %ld\n", __FUNCTION__, written_raw ));
+    avro_value_decref(&adr);
+    avro_writer_free(writer);
+    return;
+  }
+
+  AvroSerializedSize = framing + (size_t)written_raw;
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Serialized size %zu\n", AvroSerializedSize));
+
+  /* Free up memory */
   avro_value_decref(&adr);
   avro_writer_free(writer);
 
+  if ( consoleDebugEnable )
+  {
+    /* b64 encoding */
+    size_t decodesize = b64_get_encoded_buffer_size( AvroSerializedSize );
+    uint8_t *b64buffer = malloc(decodesize * sizeof(uint8_t));
+    if(b64buffer == NULL)
+    {
+      CcspHarvesterTrace(("RDK_LOG_ERROR, %s: Failed to allocate memory for b64 buffer\n", __FUNCTION__));
+    }
+    else
+    {
+      b64_encode( (uint8_t*)AvroSerializedBuf, AvroSerializedSize, b64buffer);
+      fprintf( stderr, "\nAVro serialized data\n");
+      int print_error = 0;
+      for (k = 0; k < (int)AvroSerializedSize ; k++)
+      {
+        char buf[30];
+        if ( ( k % 32 ) == 0 )
+          fprintf( stderr, "\n");
+        rc = sprintf_s(buf,sizeof(buf),"%02X", (unsigned char)AvroSerializedBuf[k]);
+        if(rc < EOK)
+        {
+          ERR_CHK(rc);
+          print_error = 1;
+          break;
+        }
+        fprintf( stderr, "%c%c", buf[0], buf[1] );
+      }
+
+      if (!print_error)
+      {
+          fprintf( stderr, "\n\nB64 data\n");
+          for (k = 0; k < (int)decodesize; k++)
+          {
+            if ( ( k % 32 ) == 0 )
+              fprintf( stderr, "\n");
+            fprintf( stderr, "%c", b64buffer[k]);
+          }
+          fprintf( stderr, "\n\n");
+      }
+      free(b64buffer);
+    }
+  }
+
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Before AD WebPA SEND message call\n"));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, serviceName: %s\n", serviceName));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, dest: %s\n", dest));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, trans_id: %s\n", trans_id));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, contentType: %s\n", contentType));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, AvroSerializedBuf: %s\n", AvroSerializedBuf));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, AvroSerializedSize: %d\n", (int)AvroSerializedSize));
+  // Send data from Harvester to webpa using CCSP bus interface
+  sendWebpaMsg(serviceName, dest, trans_id, contentType, AvroSerializedBuf, AvroSerializedSize);
+  CcspHarvesterTrace(("RDK_LOG_WARN, InterfaceDevicesWifi report sent to Webpa, Destination=%s, Transaction-Id=%s  \n",dest,trans_id));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, After AD WebPA SEND message call\n"));
+
   CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : EXIT \n", __FUNCTION__ ));
+
+#if SIMULATION
+  exit(0);
+#endif
 }
 
