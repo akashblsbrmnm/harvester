@@ -112,7 +112,6 @@ void delete_mlo_list(struct mlo_associated_device_data *head);
  * MLO RFC Enable/Disable Feature
  */
 #define HARVESTER_MLO_RFC_PARAM "Device.DeviceInfo.X_RDKCENTRAL-COM_Report.InterfaceDevicesWifi.MloRfcEnable"
-#define HARVESTER_MLO_PSM_PARAM "eRT.com.cisco.spvtg.ccsp.harvester.MLORfcEnable"
 
 /**
  * @brief Get MLO RFC enable status

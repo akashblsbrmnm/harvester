@@ -57,15 +57,15 @@ int set_HarvesterMLORfcEnable(bool bValue)
         return 1;
     }
 
-    retPsmSet = rbus_StoreValueIntoDB(HARVESTER_MLO_PSM_PARAM, buf);
+    retPsmSet = rbus_StoreValueIntoPsmDB(HARVESTER_MLO_RFC_PARAM, buf);
     if (retPsmSet != RBUS_ERROR_SUCCESS)
     {
-        CcspHarvesterTrace(("RDK_LOG_ERROR, %s: PSM set failed ret %d for parameter %s and value %s\n", __FUNCTION__, retPsmSet, HARVESTER_MLO_PSM_PARAM, buf));
+        CcspHarvesterTrace(("RDK_LOG_ERROR, %s: PSM set failed ret %d for parameter %s and value %s\n", __FUNCTION__, retPsmSet, HARVESTER_MLO_RFC_PARAM, buf));
         free(buf);
         return 1;
     }
 
-    CcspHarvesterTrace(("RDK_LOG_INFO, %s: PSM set success for parameter %s and value %s\n", __FUNCTION__, HARVESTER_MLO_PSM_PARAM, buf));
+    CcspHarvesterTrace(("RDK_LOG_INFO, %s: PSM set success for parameter %s and value %s\n", __FUNCTION__, HARVESTER_MLO_RFC_PARAM, buf));
     free(buf);
     return 0;
 }
@@ -100,7 +100,7 @@ static rbusError_t harvesterMLO_RfcGetHandler(rbusHandle_t handle, rbusProperty_
     char *tmpchar = NULL;
 
     /* Get value from PSM DB */
-    retPsmGet = rbus_GetValueFromDB(HARVESTER_MLO_PSM_PARAM, &tmpchar);
+    retPsmGet = rbus_GetValueFromPsmDB(HARVESTER_MLO_RFC_PARAM, &tmpchar);
     if (retPsmGet == RBUS_ERROR_SUCCESS)
     {
       if (tmpchar != NULL)
@@ -270,7 +270,7 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, mlo_assoc_dev_t **associ
   outerArr = cJSON_GetObjectItem(json, "AssociatedClientsDiagnostics");
   if (outerArr == NULL)
   {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, mlo_parse: AssociatedClientsDiagnostics not found in JSON\n"));
+    CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s: no associated mlo devices clients are connected\n", __FUNCTION__));
     return 1;
   }
   CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Found AssociatedClientsDiagnostics\n", __FUNCTION__));
@@ -298,23 +298,23 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, mlo_assoc_dev_t **associ
   clientsArr = cJSON_GetObjectItem(item, "AssociatedClientDiagnostics");
   if (clientsArr == NULL)
   {
-    CcspHarvesterTrace(("RDK_LOG_INFO, mlo_parse: No AssociatedClientDiagnostics array found\n"));
+    CcspHarvesterTrace(("RDK_LOG_INFO, Harvester %s: no associated mlo devices are found\n", __FUNCTION__));
     return 0;
   }
 
   *assocDevCount = cJSON_GetArraySize(clientsArr);
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Found %d associated clients\n", __FUNCTION__, *assocDevCount));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Found %d associated mlo clients\n", __FUNCTION__, *assocDevCount));
   
   if (*assocDevCount == 0)
   {
-    CcspHarvesterTrace(("RDK_LOG_INFO, mlo_parse: No MLO devices in array\n"));
+    CcspHarvesterTrace(("RDK_LOG_INFO, Harvester %s: no associated mlo devices are connected\n", __FUNCTION__));
     return 0;
   }
 
   dev = (mlo_assoc_dev_t *)calloc(*assocDevCount, sizeof(mlo_assoc_dev_t));
   if (dev == NULL)
   {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, mlo_parse: Memory allocation failed for %d devices\n", *assocDevCount));
+    CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s: Memory allocation failed for %d devices\n", __FUNCTION__, *assocDevCount));
     return 1;
   }
   *associated_dev = dev;
@@ -430,7 +430,7 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, mlo_assoc_dev_t **associ
         link_data->cli_PacketsSent = strtoull(jsonItem->valuestring, NULL, 10);
       }
 
-      /* PacketsRecieved (note: JSON has typo) */
+      /* PacketsRecieved */
       jsonItem = cJSON_GetObjectItem(link, "PacketsRecieved");
       if (jsonItem != NULL && jsonItem->valuestring != NULL)
       {
@@ -593,16 +593,14 @@ void add_to_mlo_list(struct mlo_associated_device_data **headnode,
     return;
   }
 
-  ptr = (struct mlo_associated_device_data *)malloc(
-      sizeof(struct mlo_associated_device_data));
-  if (ptr == NULL) {
-    CcspHarvesterTrace(
-        ("RDK_LOG_ERROR, add_to_mlo_list: Memory allocation failed\n"));
+  ptr = (struct mlo_associated_device_data *)malloc(sizeof(struct mlo_associated_device_data));
+  if (ptr == NULL)
+  {
+    CcspHarvesterTrace(("RDK_LOG_ERROR, add_to_mlo_list: Memory allocation failed\n"));
     return;
   }
 
-  rc = memset_s(ptr, sizeof(struct mlo_associated_device_data), 0,
-                sizeof(struct mlo_associated_device_data));
+  rc = memset_s(ptr, sizeof(struct mlo_associated_device_data), 0, sizeof(struct mlo_associated_device_data));
   ERR_CHK(rc);
 
   ptr->vapIndex = strdup(vapIndex);
@@ -611,31 +609,35 @@ void add_to_mlo_list(struct mlo_associated_device_data **headnode,
   ptr->next = NULL;
   gettimeofday(&(ptr->timestamp), NULL);
 
-  if (*headnode == NULL) {
+  if (*headnode == NULL)
+  {
     *headnode = ptr;
-  } else {
+  }
+  else
+  {
     curr = *headnode;
-    while (curr->next != NULL) {
+    while (curr->next != NULL)
+    {
       curr = curr->next;
     }
     curr->next = ptr;
   }
 
-  CcspHarvesterConsoleTrace(
-      ("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
 }
 
 /**
  * @brief Print MLO linked list for debugging
  */
-void print_mlo_list(struct mlo_associated_device_data *head) {
+void print_mlo_list(struct mlo_associated_device_data *head)
+{
   struct mlo_associated_device_data *ptr = head;
   int nodeNum = 0;
 
-  CcspHarvesterConsoleTrace(
-      ("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
 
-  while (ptr != NULL) {
+  while (ptr != NULL)
+  {
     CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, MLO Node[%d]: VapIndex=%s "
                                "NumDevices=%lu Timestamp=%ld\n",
                                nodeNum, ptr->vapIndex ? ptr->vapIndex : "NULL",
@@ -645,35 +647,35 @@ void print_mlo_list(struct mlo_associated_device_data *head) {
     nodeNum++;
   }
 
-  CcspHarvesterConsoleTrace(
-      ("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
 }
 
 /**
  * @brief Delete and free MLO linked list
  */
-void delete_mlo_list(struct mlo_associated_device_data *head) {
+void delete_mlo_list(struct mlo_associated_device_data *head)
+{
   struct mlo_associated_device_data *curr = head;
   struct mlo_associated_device_data *next = NULL;
 
-  CcspHarvesterConsoleTrace(
-      ("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
 
-  while (curr != NULL) {
+  while (curr != NULL)
+  {
     next = curr->next;
-    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Deleting MLO Node VapIndex=%s\n",
-                               curr->vapIndex ? curr->vapIndex : "NULL"));
-    if (curr->vapIndex != NULL) {
+    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Deleting MLO Node VapIndex=%s\n",   curr->vapIndex ? curr->vapIndex : "NULL"));
+    if (curr->vapIndex != NULL)
+    {
       free(curr->vapIndex);
     }
-    if (curr->devicedata != NULL) {
+    if (curr->devicedata != NULL)
+    {
       free(curr->devicedata);
     }
     free(curr);
     curr = next;
   }
 
-  CcspHarvesterConsoleTrace(
-      ("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
 }
 

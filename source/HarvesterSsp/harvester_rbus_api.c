@@ -171,7 +171,7 @@ int rbus_getUInt32Value(ULONG * value, char * path)
 /**
  * To persist TR181 parameter values in PSM DB.
  */
-int rbus_StoreValueIntoDB(char *paramName, char *value)
+int rbus_StoreValueIntoPsmDB(char *paramName, char *value)
 {
     rbusHandle_t rbus_handle = get_rbus_handle();
     rbusObject_t inParams;
@@ -209,7 +209,7 @@ int rbus_StoreValueIntoDB(char *paramName, char *value)
 /**
  * To fetch TR181 parameter values from PSM DB.
  */
-int rbus_GetValueFromDB( char* paramName, char** paramValue)
+int rbus_GetValueFromPsmDB( char* paramName, char** paramValue)
 {
     rbusHandle_t rbus_handle = get_rbus_handle();
     rbusObject_t inParams;

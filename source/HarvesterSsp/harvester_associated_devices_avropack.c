@@ -50,6 +50,16 @@ uint8_t UUID[16] = {0xec, 0x57, 0xa5, 0xb6, 0xb1, 0x67, 0x46, 0x23,
                     0xba, 0xff, 0x39, 0x9f, 0x06, 0x3b, 0xd5, 0x6a
                    };
 
+// MLO HASH - PLACEHOLDER
+uint8_t MLO_HASH[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                       };
+
+// MLO UUID - PLACEHOLDER
+uint8_t MLO_UUID[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                       };
+
 
 // local data, load it with real data if necessary
 char ReportSource[] = "harvester";
@@ -954,13 +964,14 @@ avro_writer_t prepare_mlo_writer()
 
     /* open schema file */
     fp = fopen ( INTERFACE_DEVICES_WIFI_MLO_AVRO_FILENAME , "rb" );
+
     if ( !fp )
     {
-      CcspHarvesterTrace(("RDK_LOG_WARN, %s doesn't exist. Trying fallback to /tmp/InterfaceDevicesWifi_MLO.avsc\n", INTERFACE_DEVICES_WIFI_MLO_AVRO_FILENAME));
-      fp = fopen ( "/tmp/InterfaceDevicesWifi_MLO.avsc" , "rb" );
+      CcspHarvesterTrace(("RDK_LOG_WARN, %s doesn't exist. Trying fallback to /tmp/InterfaceDevicesWifiMLO.avsc\n", INTERFACE_DEVICES_WIFI_MLO_AVRO_FILENAME));
+      fp = fopen ( "/tmp/InterfaceDevicesWifiMLO.avsc" , "rb" );
     }
 
-    if ( !fp ) perror( "MLO Avro Schema doesn't exist."), exit(1);
+    if ( !fp ) perror( INTERFACE_DEVICES_WIFI_MLO_AVRO_FILENAME " doesn't exist."), exit(1);
 
     /* seek through file and get file size*/
     fseek( fp , 0L , SEEK_END);
@@ -1009,10 +1020,15 @@ avro_writer_t prepare_mlo_writer()
 
   AvroSerializedBuf[0] = MAGIC_NUMBER;
 
-  rc = memcpy_s(&AvroSerializedBuf[ MAGIC_NUMBER_SIZE ], sizeof(AvroSerializedBuf)-MAGIC_NUMBER_SIZE, UUID, sizeof(UUID));
+  rc = memcpy_s(&AvroSerializedBuf[ MAGIC_NUMBER_SIZE ], sizeof(AvroSerializedBuf)-MAGIC_NUMBER_SIZE, MLO_UUID, sizeof(MLO_UUID));
   if(rc != EOK)
   {
         ERR_CHK(rc);
+  }
+  rc = memcpy_s(&AvroSerializedBuf[ MAGIC_NUMBER_SIZE + sizeof(MLO_UUID) ], sizeof(AvroSerializedBuf)-MAGIC_NUMBER_SIZE-sizeof(MLO_UUID), MLO_HASH, sizeof(MLO_HASH));
+  if(rc != EOK)
+  {
+    ERR_CHK(rc);
   }
 
   writer = avro_writer_memory(&AvroSerializedBuf[MAGIC_NUMBER_SIZE + SCHEMA_ID_LENGTH], sizeof(AvroSerializedBuf) - MAGIC_NUMBER_SIZE - SCHEMA_ID_LENGTH);
@@ -1048,7 +1064,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
       temp = temp->next;
   }
 
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, numElements = %d, numDevices = %ld\n", numElements, numDevices ));
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, numElements = %d, numDevices = %lu\n", numElements, numDevices ));
 
   OneAvroSerializedSize = 0;
 
@@ -1168,9 +1184,9 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   avro_value_set_int(&optional, (int)numDevices);
 
   // Version - (Not available in struct, checking definition or placeholder)
-  /* avro_value_get_by_name(&adr, "version", &adrField, NULL);
-     avro_value_set_branch(&adrField, 0, &optional);
-     avro_value_set_null(&optional); */
+   avro_value_get_by_name(&adr, "version", &adrField, NULL);
+   avro_value_set_branch(&adrField, 0, &optional);
+   avro_value_set_null(&optional);
 
   //Data Field block
   avro_value_get_by_name(&adr, "data", &adrField, NULL);
@@ -1546,7 +1562,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   int64_t written_raw = avro_writer_tell(writer);
   if (written_raw <= 0)
   {
-    CcspHarvesterTrace(( "RDK_LOG_ERROR, %s: Avro write failed or empty. Bytes written: %ld\n", __FUNCTION__, written_raw ));
+    CcspHarvesterTrace(( "RDK_LOG_ERROR, %s: Avro write failed or empty. Bytes written: %" PRId64 "\n", __FUNCTION__, written_raw ));
     avro_value_decref(&adr);
     avro_writer_free(writer);
     return;

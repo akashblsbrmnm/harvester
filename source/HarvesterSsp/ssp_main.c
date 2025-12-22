@@ -175,7 +175,7 @@ int  cmd_dispatch(int  command)
                  /* Load initial value from PSM */
                  rbusError_t ret = RBUS_ERROR_SUCCESS;
                  char *tmpchar = NULL;
-                 ret = rbus_GetValueFromDB(HARVESTER_MLO_PSM_PARAM, &tmpchar);
+                 ret = rbus_GetValueFromPsmDB(HARVESTER_MLO_RFC_PARAM, &tmpchar);
                  if (ret == RBUS_ERROR_SUCCESS && tmpchar != NULL)
                  {
                     if ((strcmp(tmpchar, "true") == 0) || (strcmp(tmpchar, "TRUE") == 0))
