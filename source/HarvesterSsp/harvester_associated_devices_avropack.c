@@ -1080,10 +1080,12 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   avro_value_t optional  = {0};
 
   // timestamp - long
-  avro_value_get_by_name(&adr, "header", &adrField, NULL);
+  avro_value_t headerField = {0};
+  avro_value_t timestampField = {0};
+  avro_value_get_by_name(&adr, "header", &headerField, NULL);
   if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
-  avro_value_get_by_name(&adrField, "timestamp", &adrField, NULL);
-  avro_value_set_branch(&adrField, 1, &optional);
+  avro_value_get_by_name(&headerField, "timestamp", &timestampField, NULL);
+  avro_value_set_branch(&timestampField, 1, &optional);
   if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
 
   struct timeval ts;
@@ -1102,15 +1104,17 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   uuid_generate_random(transaction_id);
   uuid_unparse(transaction_id, trans_id);
 
-  avro_value_get_by_name(&adr, "header", &adrField, NULL);
-  avro_value_get_by_name(&adrField, "uuid", &adrField, NULL);
-  avro_value_set_branch(&adrField, 1, &optional);
+  avro_value_t uuidField = {0};
+  avro_value_get_by_name(&adr, "header", &headerField, NULL);
+  avro_value_get_by_name(&headerField, "uuid", &uuidField, NULL);
+  avro_value_set_branch(&uuidField, 1, &optional);
   avro_value_set_fixed(&optional, transaction_id, 16);
 
   //source - string
-  avro_value_get_by_name(&adr, "header", &adrField, NULL);
-  avro_value_get_by_name(&adrField, "source", &adrField, NULL);
-  avro_value_set_branch(&adrField, 1, &optional);
+  avro_value_t sourceField = {0};
+  avro_value_get_by_name(&adr, "header", &headerField, NULL);
+  avro_value_get_by_name(&headerField, "source", &sourceField, NULL);
+  avro_value_set_branch(&sourceField, 1, &optional);
   avro_value_set_string(&optional, ReportSource);
 
   //cpe_id block
@@ -1130,15 +1134,18 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
     hex[2] = 0;
     CpeMacid[ k ] = (unsigned char)strtol(hex, NULL, 16);
   }
-  avro_value_get_by_name(&adr, "cpe_id", &adrField, NULL);
-  avro_value_get_by_name(&adrField, "mac_address", &adrField, NULL);
-  avro_value_set_branch(&adrField, 1, &optional);
+  avro_value_t cpeIdField = {0};
+  avro_value_t macAddressField = {0};
+  avro_value_get_by_name(&adr, "cpe_id", &cpeIdField, NULL);
+  avro_value_get_by_name(&cpeIdField, "mac_address", &macAddressField, NULL);
+  avro_value_set_branch(&macAddressField, 1, &optional);
   avro_value_set_fixed(&optional, CpeMacid, 6);
 
   // cpe_type - string
-  avro_value_get_by_name(&adr, "cpe_id", &adrField, NULL);
-  avro_value_get_by_name(&adrField, "cpe_type", &adrField, NULL);
-  avro_value_set_branch(&adrField, 1, &optional);
+  avro_value_t cpeTypeField = {0};
+  avro_value_get_by_name(&adr, "cpe_id", &cpeIdField, NULL);
+  avro_value_get_by_name(&cpeIdField, "cpe_type", &cpeTypeField, NULL);
+  avro_value_set_branch(&cpeTypeField, 1, &optional);
   avro_value_set_string(&optional, CPE_TYPE_STRING);
 
   // cpe_parent - Recurrsive CPEIdentifier block (Assuming default handling as existing function)
