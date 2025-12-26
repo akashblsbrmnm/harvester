@@ -87,8 +87,9 @@ size_t OneAvroSerializedSize;
 char AvroSerializedBuf[ WRITER_BUF_SIZE ];
 
 /* MLO Schema Globals */
-static char *mlo_buffer = NULL;
-STATIC avro_value_iface_t  *mlo_iface = NULL;
+char *mlo_buffer = NULL;
+avro_value_iface_t  *mlo_iface = NULL;
+avro_schema_t mlo_avroschema = NULL;
 BOOL mlo_schema_file_parsed = FALSE;
 
 char* GetIDWSchemaBuffer()
@@ -948,6 +949,24 @@ void harvester_avro_cleanup()
   schema_file_parsed = FALSE;
 }
 
+void harvester_mlo_avro_cleanup()
+{
+  if(mlo_buffer != NULL) {
+        free(mlo_buffer); 
+        mlo_buffer = NULL;
+  }
+  if(mlo_iface != NULL){
+        avro_value_iface_decref(mlo_iface);
+        mlo_iface = NULL;
+  }
+  if(mlo_avroschema != NULL){
+        avro_schema_decref(mlo_avroschema);
+        mlo_avroschema = NULL;
+  }
+  mlo_schema_file_parsed = FALSE;
+}
+
+
 
 avro_writer_t prepare_mlo_writer()
 {
@@ -994,25 +1013,33 @@ avro_writer_t prepare_mlo_writer()
     fclose(fp);
 
     mlo_buffer [lSize]= '\0';
-
-    //schemas
-    avro_schema_error_t  error = NULL;
-
-    //Master report/datum
-    avro_schema_t associated_device_report_schema = NULL;
-    avro_schema_from_json(mlo_buffer, strlen(mlo_buffer),
-                        &associated_device_report_schema, &error);
-
-    //generate an avro class from our schema and get a pointer to the value interface
-    mlo_iface = avro_generic_class_from_schema(associated_device_report_schema);
-
-    avro_schema_decref(associated_device_report_schema);
     mlo_schema_file_parsed = TRUE; // parse schema file once only
     CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Read Avro MLO schema file ONCE, lSize = %ld, pbuffer = 0x%lx.\n", lSize + 1, (ulong)mlo_buffer ));
   }
   else
   {
     CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Stored lSize = %ld, pbuffer = 0x%lx.\n", lSize + 1, (ulong)mlo_buffer ));
+  }
+
+  // Create mlo_iface ONCE and keep the schema alive (like working non-MLO code)
+  if (mlo_iface == NULL)
+  {
+    //schemas
+    avro_schema_error_t  error = NULL;
+
+    //Master report/datum
+    avro_schema_from_json(mlo_buffer, strlen(mlo_buffer), &mlo_avroschema, &error);
+
+    //generate an avro class from our schema and get a pointer to the value interface
+    mlo_iface = avro_generic_class_from_schema(mlo_avroschema);
+
+    // Keep mlo_avroschema alive - do NOT call avro_schema_decref()
+    // The schema must remain valid as long as mlo_iface exists
+    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Created mlo_iface ONCE from schema\n"));
+  }
+  else
+  {
+    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Reusing existing mlo_iface\n"));
   }
 
   rc = memset_s(&AvroSerializedBuf[0], sizeof(AvroSerializedBuf), 0, sizeof(AvroSerializedBuf));
@@ -1023,15 +1050,19 @@ avro_writer_t prepare_mlo_writer()
   rc = memcpy_s(&AvroSerializedBuf[ MAGIC_NUMBER_SIZE ], sizeof(AvroSerializedBuf)-MAGIC_NUMBER_SIZE, MLO_UUID, sizeof(MLO_UUID));
   if(rc != EOK)
   {
-        ERR_CHK(rc);
+    ERR_CHK(rc);
+    return writer;
   }
   rc = memcpy_s(&AvroSerializedBuf[ MAGIC_NUMBER_SIZE + sizeof(MLO_UUID) ], sizeof(AvroSerializedBuf)-MAGIC_NUMBER_SIZE-sizeof(MLO_UUID), MLO_HASH, sizeof(MLO_HASH));
   if(rc != EOK)
   {
     ERR_CHK(rc);
+    return writer;
   }
 
   writer = avro_writer_memory(&AvroSerializedBuf[MAGIC_NUMBER_SIZE + SCHEMA_ID_LENGTH], sizeof(AvroSerializedBuf) - MAGIC_NUMBER_SIZE - SCHEMA_ID_LENGTH);
+
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : EXIT \n", __FUNCTION__ ));
 
   return writer;
 }
@@ -1047,7 +1078,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   struct mlo_associated_device_data* ptr = head;
   avro_writer_t writer;
   char * serviceName = "harvester";
-  char * dest = "event:raw.kestrel.reports.InterfaceDevicesWifi";
+  char * dest = "event:raw.kestrel.reports.InterfaceDevicesWifiMLO";
   char * contentType = "avro/binary";
   uuid_t transaction_id;
   char trans_id[37];
@@ -1635,7 +1666,7 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
   CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, AvroSerializedSize: %d\n", (int)AvroSerializedSize));
   // Send data from Harvester to webpa using CCSP bus interface
   sendWebpaMsg(serviceName, dest, trans_id, contentType, AvroSerializedBuf, AvroSerializedSize);
-  CcspHarvesterTrace(("RDK_LOG_WARN, InterfaceDevicesWifi report sent to Webpa, Destination=%s, Transaction-Id=%s  \n",dest,trans_id));
+  CcspHarvesterTrace(("RDK_LOG_WARN, InterfaceDevicesWifiMLO report sent to Webpa, Destination=%s, Transaction-Id=%s  \n",dest,trans_id));
   CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, After AD WebPA SEND message call\n"));
 
   CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : EXIT \n", __FUNCTION__ ));
