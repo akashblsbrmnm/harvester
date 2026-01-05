@@ -984,12 +984,6 @@ avro_writer_t prepare_mlo_writer()
     /* open schema file */
     fp = fopen ( INTERFACE_DEVICES_WIFI_MLO_AVRO_FILENAME , "rb" );
 
-    if ( !fp )
-    {
-      CcspHarvesterTrace(("RDK_LOG_WARN, %s doesn't exist. Trying fallback to /tmp/InterfaceDevicesWifiMLO.avsc\n", INTERFACE_DEVICES_WIFI_MLO_AVRO_FILENAME));
-      fp = fopen ( "/tmp/InterfaceDevicesWifiMLO.avsc" , "rb" );
-    }
-
     if ( !fp ) perror( INTERFACE_DEVICES_WIFI_MLO_AVRO_FILENAME " doesn't exist."), exit(1);
 
     /* seek through file and get file size*/

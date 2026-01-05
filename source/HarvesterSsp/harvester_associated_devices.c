@@ -715,7 +715,7 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
         }
         else
         {
-             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: No MLO devices found or error (ret=%d, count=%d)\n", __FUNCTION__, mloRet, mlo_array_size));
+             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : rbus_getMloAssociatedDeviceDiagnosticResult Return[%d] array_size [%d] \n", __FUNCTION__, mloRet, mlo_array_size));
         }
         if (mloVapIndex) free(mloVapIndex);
     }
