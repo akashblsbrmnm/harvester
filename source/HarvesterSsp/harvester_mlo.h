@@ -104,6 +104,11 @@ void add_to_mlo_list(struct mlo_associated_device_data **headnode,
 void print_mlo_list(struct mlo_associated_device_data *head);
 
 /**
+ * @brief Print full MLO linked list details for debugging
+ */
+void print_mlo_list_full(struct mlo_associated_device_data *head);
+
+/**
  * @brief Delete and free MLO linked list
  */
 void delete_mlo_list(struct mlo_associated_device_data *head);

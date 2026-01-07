@@ -689,8 +689,8 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
     } 
 
 #ifdef RDK_ONEWIFI
-    /* Poll MLO TR181 if RFC enabled */
-    if (get_HarvesterMLORfcEnable())
+    /* Poll MLO TR181 if RFC enabled and ServiceType is not PUBLIC */
+    if (get_HarvesterMLORfcEnable() && ServiceType != PUBLIC)
     {
         CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: MLO RFC Enabled, polling wlanIndex %d\n", __FUNCTION__, wlanIndex));
         mlo_assoc_dev_t *mlo_dev_array = NULL;
@@ -711,7 +711,7 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
                 mlo_headnode = &headnodeprivate_mlo;
             }
             add_to_mlo_list(mlo_headnode, mloVapIndex, mlo_array_size, mlo_dev_array);
-            print_mlo_list(*mlo_headnode);
+            print_mlo_list_full(*mlo_headnode);
         }
         else
         {

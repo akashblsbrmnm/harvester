@@ -651,6 +651,66 @@ void print_mlo_list(struct mlo_associated_device_data *head)
 }
 
 /**
+ * @brief Print full MLO linked list details for debugging
+ */
+void print_mlo_list_full(struct mlo_associated_device_data *head)
+{
+  struct mlo_associated_device_data *ptr = head;
+  int nodeNum = 0;
+  int i = 0;
+  int j = 0;
+
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
+
+  while (ptr != NULL)
+  {
+    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, MLO Node[%d]: VapIndex=%s "
+                               "NumDevices=%lu Timestamp=%ld\n",
+                               nodeNum, ptr->vapIndex ? ptr->vapIndex : "NULL",
+                               ptr->numAssocDevices,
+                               (long)ptr->timestamp.tv_sec));
+
+    if (ptr->devicedata != NULL)
+    {
+        for (i = 0; i < (int)ptr->numAssocDevices; i++)
+        {
+            mlo_assoc_dev_t *dev = &ptr->devicedata[i];
+            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,   Device[%d] MAC: %02x:%02x:%02x:%02x:%02x:%02x NumLinks: %d\n",
+                   i, dev->cli_MACAddress[0], dev->cli_MACAddress[1],
+                   dev->cli_MACAddress[2], dev->cli_MACAddress[3],
+                   dev->cli_MACAddress[4], dev->cli_MACAddress[5],
+                   dev->numLinks));
+
+            for (j = 0; j < MAX_MLO_LINKS; j++)
+            {
+                mlo_link_data_t *link = &dev->links[j];
+                /* Print link only if band is populated */
+                if (link->band[0] != '\0')
+                {
+                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,     Link[%d] Band: %s Active: %d Std: %s BW: %s RSSI: %d SNR: %d\n",
+                        j, link->band, link->cli_Active, link->cli_OperatingStandard,
+                        link->cli_OperatingChannelBandwidth, link->cli_RSSI, link->cli_SNR));
+                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,       BytesSent: %llu BytesReceived: %llu PacketsSent: %llu PacketsReceived: %llu\n",
+                        (unsigned long long)link->cli_BytesSent, (unsigned long long)link->cli_BytesReceived,
+                        (unsigned long long)link->cli_PacketsSent, (unsigned long long)link->cli_PacketsReceived));
+                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,       Errors: %u Retrans: %u Retransmission: %u Disassoc: %u AuthFail: %u\n",
+                        link->cli_Errors, link->cli_RetransCount, link->cli_Retransmissions,
+                        link->cli_Disassociations, link->cli_AuthenticationFailures));
+                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,       Downlink: %u Uplink: %u SignalStrength: %d AssocLink: %d\n",
+                        link->cli_LastDataDownlinkRate, link->cli_LastDataUplinkRate, link->cli_SignalStrength, link->associationLink));
+                }
+            }
+        }
+    }
+
+    ptr = ptr->next;
+    nodeNum++;
+  }
+
+  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
+}
+
+/**
  * @brief Delete and free MLO linked list
  */
 void delete_mlo_list(struct mlo_associated_device_data *head)
