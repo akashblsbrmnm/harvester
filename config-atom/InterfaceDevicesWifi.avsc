@@ -103,6 +103,24 @@
           "doc": "Contains operational metrics and data collected about the WiFi physical interface for a specific connected device.",
           "fields": [
             {
+              "name": "mld_mac",
+              "type": [
+                "null",
+                "com.comcast.kestrel.datatype.MacAddress"
+              ],
+              "doc": "MLD MAC address if this device is part of an MLO connection",
+              "default": null
+            },
+            {
+              "name": "mld_enable",
+              "type": [
+                "null",
+                "boolean"
+              ],
+              "doc": "Indicates if MLO is enabled for this device",
+              "default": null
+            },
+            {
               "name": "device_id",
               "type": {
                 "namespace": "com.comcast.kestrel.odp",

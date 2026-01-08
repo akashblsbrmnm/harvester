@@ -140,7 +140,10 @@ int rbus_wifi_getNeighboringWiFiDiagnosticResult2(bool *executed, wifi_neighbor_
  *
  * @return status 0 for success, 1 for failure
  */
-int rbus_getMloAssociatedDeviceDiagnosticResult(int index, mlo_assoc_dev_t **mlo_dev, uint32_t *mloDevCount, char **vapIndex);
+#include "harvester_associated_devices.h"
+
+int rbus_getMloAssociatedDeviceDiagnosticResult(int index, harvester_associated_dev_t **mlo_dev, 
+                                                 uint32_t *mloDevCount, char **vapIndex);
 
 /**
  * To persist TR181 parameter values in PSM DB.

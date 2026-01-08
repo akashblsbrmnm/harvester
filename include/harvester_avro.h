@@ -23,13 +23,25 @@
 #include <sys/time.h>
 #include <wifi_hal.h>
 #include <pthread.h>
-#include "harvester_mlo.h"
+#include <pthread.h>
 
 #ifndef UNIT_TEST_DOCKER_SUPPORT
     #define STATIC                    static
 #else
     #define STATIC
 #endif
+
+#include <stdbool.h>
+
+#define MAC_STR_LEN 18
+
+typedef struct _harvester_associated_dev_t {
+    wifi_associated_dev_t base_data;
+    char mld_mac[MAC_STR_LEN];
+    bool mld_enable;
+    char vap_index[32];
+    char frequency_band[8];
+} harvester_associated_dev_t;
 
 struct associateddevicedata
 {
@@ -39,7 +51,7 @@ char* bssid;
 char* radioOperatingFrequencyBand; //Possible value 2.4Ghz and 5.0 Ghz
 ULONG radioChannel;  // Possible Value between 1-11
 ULONG numAssocDevices;
-wifi_associated_dev_t* devicedata;
+harvester_associated_dev_t* devicedata;
 
 struct associateddevicedata *next;
 };
@@ -70,7 +82,6 @@ wifi_radioTrafficStats2_t* rtdata;
 };
 
 extern void harvester_report_associateddevices(struct associateddevicedata *head, char* ServiceType);
-extern void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *head, char* ServiceType);
 extern void harvester_report_neighboringap(struct neighboringapdata *head);
 extern void harvester_report_radiotraffic(struct radiotrafficdata *head);
 

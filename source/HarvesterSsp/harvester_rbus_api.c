@@ -518,11 +518,13 @@ int rbus_getApAssociatedDeviceDiagnosticResult(int index, wifi_associated_dev_t*
     return 0;
 }
 
+#include "harvester_associated_devices.h"
+
 /**
  * @brief Fetch MLO associated device diagnostics from X_RDK_MloDiagData TR181.
  *        This is a separate TR181 path specifically for MLO devices.
  */
-int rbus_getMloAssociatedDeviceDiagnosticResult(int index, mlo_assoc_dev_t **mlo_dev, 
+int rbus_getMloAssociatedDeviceDiagnosticResult(int index, harvester_associated_dev_t **mlo_dev, 
                                                  uint32_t *mloDevCount, char **vapIndex)
 {
     int rc;

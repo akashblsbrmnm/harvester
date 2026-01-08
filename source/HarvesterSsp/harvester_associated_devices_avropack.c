@@ -538,6 +538,53 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, interface_mac = 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n", pMac[0], pMac[1], pMac[2], pMac[3], pMac[4], pMac[5] ));
       if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
 
+      if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+
+      // mld_mac
+      avro_value_get_by_name(&dr, "mld_mac", &drField, NULL);
+      if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+      if (h_dev->mld_mac[0] != '\0')
+      {
+           unsigned char mldMacId[6] = {0};
+           int m1, m2, m3, m4, m5, m6;
+           if (sscanf(h_dev->mld_mac, "%02x:%02x:%02x:%02x:%02x:%02x", &m1, &m2, &m3, &m4, &m5, &m6) == 6)
+           {
+               mldMacId[0] = (unsigned char)m1; mldMacId[1] = (unsigned char)m2; mldMacId[2] = (unsigned char)m3;
+               mldMacId[3] = (unsigned char)m4; mldMacId[4] = (unsigned char)m5; mldMacId[5] = (unsigned char)m6;
+               
+               avro_value_set_branch(&drField, 1, &optional); 
+               avro_value_set_fixed(&optional, mldMacId, 6);
+               CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, mld_mac set to %s\n", h_dev->mld_mac));
+           }
+           else
+           {
+               avro_value_set_branch(&drField, 0, &optional);
+               avro_value_set_null(&optional);
+           }
+      }
+      else
+      {
+           avro_value_set_branch(&drField, 0, &optional);
+           avro_value_set_null(&optional);
+      }
+      if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+
+      // mld_enable
+      avro_value_get_by_name(&dr, "mld_enable", &drField, NULL);
+      if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+      if (h_dev->mld_mac[0] != '\0') // Set mld_enable only if mld_mac is present (implies MLO device)
+      {
+          avro_value_set_branch(&drField, 1, &optional);
+          avro_value_set_boolean(&optional, h_dev->mld_enable ? 1 : 0);
+          CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, mld_enable set to %d\n", h_dev->mld_enable));
+      }
+      else
+      {
+          avro_value_set_branch(&drField, 0, &optional);
+          avro_value_set_null(&optional);
+      }
+      if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+
       //interface parameters block
 
       // operating standard
@@ -612,7 +659,12 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       avro_value_set_branch(&drField, 1, &optional);
       CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band\tType: %d\n", avro_value_get_type(&optional)));
       //Patch HAL values if necessary
-      rc = strcmp_s("2.4GHz", strsize2_4GHZ, ptr->radioOperatingFrequencyBand, &ind);
+      char *bandToUse = ptr->radioOperatingFrequencyBand;
+      if (h_dev->frequency_band[0] != '\0')
+      {
+          bandToUse = h_dev->frequency_band;
+      }
+      rc = strcmp_s("2.4GHz", strsize2_4GHZ, bandToUse, &ind);
       ERR_CHK(rc);
       if((rc == EOK) && (!ind))
       {
@@ -621,7 +673,7 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       }
       else
       {
-         rc = strcmp_s("5GHz", strsize5GHZ, ptr->radioOperatingFrequencyBand, &ind);
+         rc = strcmp_s("5GHz", strsize5GHZ, bandToUse, &ind);
          ERR_CHK(rc);
          if((rc == EOK) && (!ind))
          {
@@ -631,13 +683,13 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
 #ifndef WIFI_HAL_VERSION_3
          else
          {
-            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", ptr->radioOperatingFrequencyBand ));
-            avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), ptr->radioOperatingFrequencyBand));
+            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", bandToUse ));
+            avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), bandToUse));
          }
 #else
          else
          {
-            rc = strcmp_s("6GHz", strsize6GHZ, ptr->radioOperatingFrequencyBand, &ind);
+            rc = strcmp_s("6GHz", strsize6GHZ, bandToUse, &ind);
             ERR_CHK(rc);
             if((rc == EOK) && (!ind))
             {
@@ -646,8 +698,8 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
             }
             else
             {
-               CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", ptr->radioOperatingFrequencyBand ));
-               avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), ptr->radioOperatingFrequencyBand));
+               CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", bandToUse ));
+               avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), bandToUse));
             }
          }
 #endif
@@ -1238,8 +1290,10 @@ void harvester_report_mlo_associateddevices(struct mlo_associated_device_data *h
 
   while(ptr != NULL)
   {
-      for (j = 0, ps = ptr->devicedata; j < ptr->numAssocDevices; j++, ps++)
+      harvester_associated_dev_t *h_dev = ptr->devicedata;
+      for (j = 0; j < ptr->numAssocDevices; j++, h_dev++)
       {
+         ps = &h_dev->base_data;
            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, MLO Device %d\n", j));
 
            //Append a DeviceReport item to array

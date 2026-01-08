@@ -132,6 +132,11 @@ BOOL ValidateIDWPeriod(ULONG interval);
 BOOL isvalueinarray(ULONG val, ULONG *arr, int size);
 char* GetIDWSchemaBuffer();
 int GetIDWSchemaBufferSize();
+#define MAC_STR_LEN 18
+
+
+
+
 char* GetIDWSchemaIDBuffer();
 int GetIDWSchemaIDBufferSize();
 int NumberofElementsinLinkedList(struct associateddevicedata* head);

@@ -23,6 +23,9 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "ansc_platform.h"
+#include <wifi_hal.h>
+#include "harvester_associated_devices.h"
 
 #define MAX_MLO_LINKS 3  /* 2G, 5G, 6G */
 
@@ -85,8 +88,18 @@ struct mlo_associated_device_data {
  * @param[out] vapIndex VAP index string (caller must free)
  * @return 0 for success, 1 for failure
  */
+#include "harvester_associated_devices.h"
+
+/**
+ * @brief Parse MLO format JSON into structures
+ * @param[in] jsonVal cJSON object
+ * @param[out] associated_dev Array of MLO device structures
+ * @param[out] assocDevCount Number of devices
+ * @param[out] vapIndex VAP index string (caller must free)
+ * @return 0 for success, 1 for failure
+ */
 int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, 
-                                         mlo_assoc_dev_t **associated_dev, 
+                                         harvester_associated_dev_t **associated_dev, 
                                          uint32_t *assocDevCount,
                                          char **vapIndex);
 

@@ -239,340 +239,300 @@ void harvesterMLO_RfcUninit(void)
 /**
  * @brief Parse MLO format JSON into structures
  */
-int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, mlo_assoc_dev_t **associated_dev, uint32_t *assocDevCount, char **vapIndex)
+/**
+ * @brief Parse MLO format JSON into structures
+ */
+int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, harvester_associated_dev_t **associated_dev, uint32_t *assocDevCount, char **vapIndex)
 {
-  cJSON *json = (cJSON *)jsonVal;
-  cJSON *outerArr = NULL;
-  cJSON *item = NULL;
-  cJSON *vapItem = NULL;
-  cJSON *clientsArr = NULL;
-  cJSON *client = NULL;
-  cJSON *linksArr = NULL;
-  cJSON *link = NULL;
-  cJSON *jsonItem = NULL;
-  mlo_assoc_dev_t *dev = NULL;
-  int i = 0;
-  int j = 0;
-  errno_t rc = -1;
+    cJSON *json = (cJSON *)jsonVal;
+    cJSON *outerArr = NULL;
+    cJSON *item = NULL;
+    cJSON *vapItem = NULL;
+    cJSON *clientsArr = NULL;
+    cJSON *client = NULL;
+    cJSON *linksArr = NULL;
+    cJSON *link = NULL;
+    cJSON *jsonItem = NULL;
+    harvester_associated_dev_t *dev = NULL;
+    int i = 0, j = 0, k = 0, m = 0;
+    uint32_t totalLinks = 0;
+    errno_t rc = -1;
 
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Entered\n", __FUNCTION__));
+    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Entered\n", __FUNCTION__));
 
-  if (json == NULL || associated_dev == NULL || assocDevCount == NULL || vapIndex == NULL)
-  {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, mlo_parseAssociatedDeviceDiagnostics: NULL parameter\n"));
-    return 1;
-  }
+    if (json == NULL || associated_dev == NULL || assocDevCount == NULL || vapIndex == NULL)
+    {
+        CcspHarvesterTrace(("RDK_LOG_ERROR, try_parse: NULL parameter\n"));
+        return 1;
+    }
 
-  *associated_dev = NULL;
-  *assocDevCount = 0;
-  *vapIndex = NULL;
+    *associated_dev = NULL;
+    *assocDevCount = 0;
+    *vapIndex = NULL;
 
-  outerArr = cJSON_GetObjectItem(json, "AssociatedClientsDiagnostics");
-  if (outerArr == NULL)
-  {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s: no associated mlo devices clients are connected\n", __FUNCTION__));
-    return 1;
-  }
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Found AssociatedClientsDiagnostics\n", __FUNCTION__));
+    outerArr = cJSON_GetObjectItem(json, "AssociatedClientsDiagnostics");
+    if (outerArr == NULL)
+    {
+        CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s: no associated mlo devices clients are connected\n", __FUNCTION__));
+        return 1;
+    }
+    
+    int outerArrSize = cJSON_GetArraySize(outerArr);
+    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Found AssociatedClientsDiagnostics size %d\n", __FUNCTION__, outerArrSize));
 
-  item = cJSON_GetArrayItem(outerArr, 0);
-  if (item == NULL)
-  {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, mlo_parse: No items in AssociatedClientsDiagnostics array\n"));
-    return 1;
-  }
+    /* First Pass: Count Total Links to allocate memory */
+    for(m = 0; m < outerArrSize; m++)
+    {
+        item = cJSON_GetArrayItem(outerArr, m);
+        if (item == NULL) continue;
+        
+        clientsArr = cJSON_GetObjectItem(item, "AssociatedClientDiagnostics");
+        if (clientsArr != NULL)
+        {
+            int numClients = cJSON_GetArraySize(clientsArr);
+            for(i = 0; i < numClients; i++)
+            {
+                client = cJSON_GetArrayItem(clientsArr, i);
+                if(client != NULL)
+                {
+                     // Check if Links array exists
+                     linksArr = cJSON_GetObjectItem(client, "Links");
+                     if (linksArr != NULL)
+                     {
+                         totalLinks += cJSON_GetArraySize(linksArr);
+                     }
+                     else
+                     {
+                         // Fallback: If no Links array, maybe it's just a legacy-style MLD entry? 
+                         // But schema implies MLD -> Links. If missing, assume 0 or 1? 
+                         // Assuming MLO enabled structure always has Links.
+                         // If singular, we might handle it, but for now expect Links array.
+                         CcspHarvesterTrace(("RDK_LOG_WARN, %s: MLD Client %d has no Links array\n", __FUNCTION__, i));
+                     }
+                }
+            }
+        }
+    }
 
-  /* Get VapIndex */
-  vapItem = cJSON_GetObjectItem(item, "VapIndex");
-  if (vapItem != NULL && vapItem->valuestring != NULL)
-  {
-    *vapIndex = strdup(vapItem->valuestring);
-    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Parsed VapIndex: %s\n", __FUNCTION__, *vapIndex));
-  }
-  else
-  {
-    CcspHarvesterTrace(("RDK_LOG_WARN, %s: VapIndex not found or NULL\n", __FUNCTION__));
-  }
+    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Total Links found: %u\n", __FUNCTION__, totalLinks));
 
-  /* Get clients array */
-  clientsArr = cJSON_GetObjectItem(item, "AssociatedClientDiagnostics");
-  if (clientsArr == NULL)
-  {
-    CcspHarvesterTrace(("RDK_LOG_INFO, Harvester %s: no associated mlo devices are found\n", __FUNCTION__));
+    if (totalLinks == 0)
+    {
+        return 0;
+    }
+
+    /* Allocate Memory */
+    dev = (harvester_associated_dev_t *)calloc(totalLinks, sizeof(harvester_associated_dev_t));
+    if (dev == NULL)
+    {
+        CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s: Memory allocation failed for %d devices\n", __FUNCTION__, totalLinks));
+        return 1;
+    }
+
+    /* Second Pass: Populate Data */
+    uint32_t current_idx = 0;
+    for(m = 0; m < outerArrSize; m++)
+    {
+        item = cJSON_GetArrayItem(outerArr, m);
+        if (item == NULL) continue;
+
+        char *currentVapIndex = NULL;
+        vapItem = cJSON_GetObjectItem(item, "VapIndex");
+        if (vapItem != NULL && vapItem->valuestring != NULL)
+        {
+             currentVapIndex = vapItem->valuestring;
+             // Set the first found VapIndex as the output for compatibility, if not set
+             if (*vapIndex == NULL) *vapIndex = strdup(currentVapIndex);
+        }
+
+        clientsArr = cJSON_GetObjectItem(item, "AssociatedClientDiagnostics");
+        if (clientsArr == NULL) continue;
+
+        int numClients = cJSON_GetArraySize(clientsArr);
+        for(i = 0; i < numClients; i++)
+        {
+            client = cJSON_GetArrayItem(clientsArr, i);
+            if(client == NULL) continue;
+
+            // Extract MLD common fields
+            char mldMac[32] = {0};
+            bool mldEnable = false;
+
+            jsonItem = cJSON_GetObjectItem(client, "MLDMAC");
+            if (jsonItem != NULL && jsonItem->valuestring != NULL)
+            {
+                strncpy(mldMac, jsonItem->valuestring, sizeof(mldMac)-1);
+            }
+
+            jsonItem = cJSON_GetObjectItem(client, "MLDEnable");
+            if (jsonItem != NULL)
+            {
+               // Handle bool or string/int 0/1
+               if(cJSON_IsBool(jsonItem)) mldEnable = cJSON_IsTrue(jsonItem);
+               else if(cJSON_IsString(jsonItem)) mldEnable = (atoi(jsonItem->valuestring) == 1);
+               else if(cJSON_IsNumber(jsonItem)) mldEnable = (jsonItem->valueint == 1);
+            }
+
+            linksArr = cJSON_GetObjectItem(client, "AssociatedClientDiagnostics"); // The JSON Request implies inner array is also named this? 
+            // Wait, looking at USER_REQUEST:
+            // "AssociatedClientsDiagnostics": [ { "VapIndex":..., "AssociatedClientDiagnostics": [ { "MAC":..., "Links": [ ... ] } ] } ]
+            // Correction: The User Request example shows:
+            // "AssociatedClientDiagnostics": [
+            //    { "MAC": "...", "MLDMAC": "...", ... "Band": "2G", ... }, 
+            //    { "MAC": "...", "MLDMAC": "...", ... "Band": "5G", ... }
+            // ]
+            // It seems "AssociatedClientDiagnostics" inside "AssociatedClientsDiagnostics" IS THE LIST OF LINKS directly?
+            // The JSON structure in the USER EXAMPLE (Step 0) is:
+            // { "Version": "1.1", "AssociatedClientsDiagnostics": [ { "VapIndex": "...", "AssociatedClientDiagnostics": [ { "MAC": "...", "Band": "2G", "MLDMAC": "...", ... }, { "MAC": "...", "Band": "5G", ... } ] } ] }
+            //
+            // **CRITICAL OBSERVATION**: In the user's example, the inner array "AssociatedClientDiagnostics" contains objects that HAVE "MAC", "Band", "MLDMAC", etc.
+            // This means the JSON is ALREADY FLATTENED (or relatively flat). It lists Links directly, where each Link has MLDMAC property.
+            // There is NO "Links" array nested inside.
+            //
+            // My previous parsing logic assumed MLD -> Links array. 
+            // The new JSON format (Step 0) shows Links are direct children of the VAP object's list.
+            //
+            // I must adapt to this.
+            
+            // Re-evaluating based on Step 0 JSON:
+            // Loop Outer (VAPs)
+            //   Loop Inner "AssociatedClientDiagnostics" (Links)
+            //     Parse "MAC" -> cli_MACAddress
+            //     Parse "MLDMAC" -> mld_mac
+            //     Parse "Band" -> frequency_band
+            //     Etc.
+
+            // So I need to correct my loop logic. 
+            // linksArr IS clientsArr in this context if the JSON is flat list of links.
+            // But wait, "AssociatedClientDiagnostics" [ { ... } ]. Is { ... } a Link or a Client?
+            // It has "MAC" and "Band". And "MLDMAC".
+            // It looks like a Link-level object that carries MLD context.
+            // So YES, it is flat.
+
+            // Let's implement based on Step 0 structure.
+            
+            // Extract Link Data directly from 'client' (which in this case is a link entry)
+            harvester_associated_dev_t *dst = &dev[current_idx];
+            wifi_associated_dev_t *base = &dst->base_data;
+            
+            // MLD Context
+            if (currentVapIndex)
+            {
+                rc = strcpy_s(dst->vap_index, sizeof(dst->vap_index), currentVapIndex);
+                ERR_CHK(rc);
+            }
+
+            jsonItem = cJSON_GetObjectItem(client, "MLDMAC");
+             if (jsonItem != NULL && jsonItem->valuestring != NULL)
+            {
+                rc = strcpy_s(dst->mld_mac, sizeof(dst->mld_mac), jsonItem->valuestring);
+                ERR_CHK(rc);
+            }
+            
+            jsonItem = cJSON_GetObjectItem(client, "MLDEnable");
+            if (jsonItem != NULL)
+            {
+               if(cJSON_IsBool(jsonItem)) dst->mld_enable = cJSON_IsTrue(jsonItem);
+               else if(cJSON_IsString(jsonItem)) dst->mld_enable = (atoi(jsonItem->valuestring) == 1);
+               else if(cJSON_IsNumber(jsonItem)) dst->mld_enable = (jsonItem->valueint == 1);
+            }
+
+            // Link Data
+            jsonItem = cJSON_GetObjectItem(client, "MAC");
+            if (jsonItem != NULL && jsonItem->valuestring != NULL) {
+                sscanf(jsonItem->valuestring, "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
+                       &base->cli_MACAddress[0], &base->cli_MACAddress[1],
+                       &base->cli_MACAddress[2], &base->cli_MACAddress[3],
+                       &base->cli_MACAddress[4], &base->cli_MACAddress[5]);
+            }
+
+            jsonItem = cJSON_GetObjectItem(client, "Band");
+            if (jsonItem != NULL && jsonItem->valuestring != NULL)
+            {
+                rc = strcpy_s(dst->frequency_band, sizeof(dst->frequency_band), jsonItem->valuestring);
+                ERR_CHK(rc);
+            }
+            
+            // Other Metrics
+            jsonItem = cJSON_GetObjectItem(client, "RSSI");
+            if (jsonItem) base->cli_RSSI = atoi(jsonItem->valuestring);
+            
+            jsonItem = cJSON_GetObjectItem(client, "SignalStrength");
+            if (jsonItem) base->cli_SignalStrength = atoi(jsonItem->valuestring);
+            
+            jsonItem = cJSON_GetObjectItem(client, "SNR");
+            if (jsonItem) base->cli_SNR = atoi(jsonItem->valuestring);
+            
+            jsonItem = cJSON_GetObjectItem(client, "BytesSent");
+            if (jsonItem) base->cli_BytesSent = strtoull(jsonItem->valuestring, NULL, 10);
+            
+            jsonItem = cJSON_GetObjectItem(client, "BytesReceived");
+            if (jsonItem) base->cli_BytesReceived = strtoull(jsonItem->valuestring, NULL, 10);
+
+            jsonItem = cJSON_GetObjectItem(client, "PacketsSent");
+            if (jsonItem) base->cli_PacketsSent = strtoull(jsonItem->valuestring, NULL, 10);
+
+            jsonItem = cJSON_GetObjectItem(client, "PacketsRecieved");
+            if (jsonItem) base->cli_PacketsReceived = strtoull(jsonItem->valuestring, NULL, 10);
+
+            jsonItem = cJSON_GetObjectItem(client, "Errors");
+            if (jsonItem) base->cli_Errors = atoi(jsonItem->valuestring);
+
+            jsonItem = cJSON_GetObjectItem(client, "RetransCount"); // Not standard in wifi_associated_dev_t but was in MLO struct. 
+                                                                    // Check if base has it. Hal dev_t sometimes has X_COMCAST_ stuff.
+                                                                    // Assuming base has only standard fields. 
+                                                                    // Previous code in harvester_associated_devices.c debug prints showed:
+                                                                    // cli_Retransmissions.
+            jsonItem = cJSON_GetObjectItem(client, "Retransmissions");
+            if (jsonItem) base->cli_Retransmissions = atoi(jsonItem->valuestring);
+            
+            jsonItem = cJSON_GetObjectItem(client, "AuthenticationFailures");
+            if (jsonItem) base->cli_AuthenticationFailures = atoi(jsonItem->valuestring);
+
+            jsonItem = cJSON_GetObjectItem(client, "AuthenticationState");
+             if (jsonItem) base->cli_AuthenticationState = (atoi(jsonItem->valuestring) == 1);
+            
+            jsonItem = cJSON_GetObjectItem(client, "Active");
+             if (jsonItem) base->cli_Active = (atoi(jsonItem->valuestring) == 1);
+            
+            jsonItem = cJSON_GetObjectItem(client, "Disassociations");
+            if (jsonItem) base->cli_Disassociations = atoi(jsonItem->valuestring);
+
+            jsonItem = cJSON_GetObjectItem(client, "OperatingStandard");
+            if (jsonItem && jsonItem->valuestring) {
+                rc = strcpy_s(base->cli_OperatingStandard, sizeof(base->cli_OperatingStandard), jsonItem->valuestring);
+                ERR_CHK(rc);
+            }
+            
+            jsonItem = cJSON_GetObjectItem(client, "OperatingChannelBandwidth");
+            if (jsonItem && jsonItem->valuestring) {
+                rc = strcpy_s(base->cli_OperatingChannelBandwidth, sizeof(base->cli_OperatingChannelBandwidth), jsonItem->valuestring);
+                ERR_CHK(rc);
+            }
+
+             jsonItem = cJSON_GetObjectItem(client, "InterferenceSources");
+            if (jsonItem && jsonItem->valuestring) {
+                rc = strcpy_s(base->cli_InterferenceSources, sizeof(base->cli_InterferenceSources), jsonItem->valuestring);
+                ERR_CHK(rc);
+            }
+
+            jsonItem = cJSON_GetObjectItem(client, "DataFramesSentNoAck");
+            if (jsonItem) base->cli_DataFramesSentNoAck = strtoull(jsonItem->valuestring, NULL, 10);
+            
+            jsonItem = cJSON_GetObjectItem(client, "DataFramesSentAck"); // "Acknowledgements" in JSON? 
+            // User JSON has "Acknowledgements": "170000".
+             jsonItem = cJSON_GetObjectItem(client, "Acknowledgements");
+            if (jsonItem) base->cli_DataFramesSentAck = strtoull(jsonItem->valuestring, NULL, 10);
+
+            current_idx++;
+        }
+    }
+    
+    *associated_dev = dev;
+    *assocDevCount = totalLinks;
+    
+    CcspHarvesterTrace(("RDK_LOG_INFO, mlo_parseAssociatedDeviceDiagnostics: Successfully Parsed %u MLO Links\n", totalLinks));
     return 0;
-  }
-
-  *assocDevCount = cJSON_GetArraySize(clientsArr);
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Found %d associated mlo clients\n", __FUNCTION__, *assocDevCount));
-  
-  if (*assocDevCount == 0)
-  {
-    CcspHarvesterTrace(("RDK_LOG_INFO, Harvester %s: no associated mlo devices are connected\n", __FUNCTION__));
-    return 0;
-  }
-
-  dev = (mlo_assoc_dev_t *)calloc(*assocDevCount, sizeof(mlo_assoc_dev_t));
-  if (dev == NULL)
-  {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s: Memory allocation failed for %d devices\n", __FUNCTION__, *assocDevCount));
-    return 1;
-  }
-  *associated_dev = dev;
-
-  for (i = 0; i < (int)*assocDevCount; i++)
-  {
-    client = cJSON_GetArrayItem(clientsArr, i);
-    if (client == NULL)
-    {
-      CcspHarvesterTrace(("RDK_LOG_WARN, %s: Client item %d is NULL\n", __FUNCTION__, i));
-      continue;
-    }
-
-    /* Parse MAC */
-    jsonItem = cJSON_GetObjectItem(client, "MAC");
-    if (jsonItem != NULL && jsonItem->valuestring != NULL) {
-      sscanf(jsonItem->valuestring, "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
-             &dev[i].cli_MACAddress[0], &dev[i].cli_MACAddress[1],
-             &dev[i].cli_MACAddress[2], &dev[i].cli_MACAddress[3],
-             &dev[i].cli_MACAddress[4], &dev[i].cli_MACAddress[5]);
-      CcspHarvesterConsoleTrace(
-          ("RDK_LOG_DEBUG, MLO Device[%d] MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-           i, dev[i].cli_MACAddress[0], dev[i].cli_MACAddress[1],
-           dev[i].cli_MACAddress[2], dev[i].cli_MACAddress[3],
-           dev[i].cli_MACAddress[4], dev[i].cli_MACAddress[5]));
-    }
-    else
-    {
-        CcspHarvesterTrace(("RDK_LOG_WARN, %s: MAC not found for device %d\n", __FUNCTION__, i));
-    }
-
-    /* Parse NumLinks -- Confirm whether its NUM or STRING */
-    jsonItem = cJSON_GetObjectItem(client, "NumLinks");
-    if (jsonItem != NULL && jsonItem->valuestring != NULL) {
-      dev[i].numLinks = atoi(jsonItem->valuestring);
-    }
-    CcspHarvesterConsoleTrace(
-        ("RDK_LOG_DEBUG, MLO Device[%d] NumLinks: %d\n", i, dev[i].numLinks));
-
-    /* Parse Links array */
-    linksArr = cJSON_GetObjectItem(client, "Links");
-    if (linksArr == NULL)
-    {
-      CcspHarvesterTrace(("RDK_LOG_WARN, %s: Links array not found for device %d\n", __FUNCTION__, i));
-      continue;
-    }
-
-    for (j = 0; j < dev[i].numLinks && j < MAX_MLO_LINKS; j++)
-    {
-      mlo_link_data_t *link_data = &dev[i].links[j];
-      link = cJSON_GetArrayItem(linksArr, j);
-      if (link == NULL)
-      {
-        CcspHarvesterTrace(("RDK_LOG_WARN, %s: Link item %d not found for device %d\n", __FUNCTION__, j, i));
-        continue;
-      }
-      
-      CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: Parsing Link %d for Device %d\n", __FUNCTION__, j, i));
-
-      /* Band */
-      jsonItem = cJSON_GetObjectItem(link, "Band");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        rc = strcpy_s(link_data->band, sizeof(link_data->band), jsonItem->valuestring);
-        ERR_CHK(rc);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tBand: %s\n", link_data->band));
-      }
-
-      /* AssociationLink (boolean in JSON) */
-      jsonItem = cJSON_GetObjectItem(link, "AssociationLink");
-      if (jsonItem != NULL)
-      {
-        link_data->associationLink = cJSON_IsTrue(jsonItem);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tAssociationLink: %d\n", link_data->associationLink));
-      }
-
-      /* DownlinkDataRate */
-      jsonItem = cJSON_GetObjectItem(link, "DownlinkDataRate");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_LastDataDownlinkRate = atoi(jsonItem->valuestring);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tDownlink: %d\n", link_data->cli_LastDataDownlinkRate));
-      }
-
-      /* UplinkDataRate */
-      jsonItem = cJSON_GetObjectItem(link, "UplinkDataRate");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_LastDataUplinkRate = atoi(jsonItem->valuestring);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tUplink: %d\n", link_data->cli_LastDataUplinkRate));
-      }
-
-      /* BytesSent */
-      jsonItem = cJSON_GetObjectItem(link, "BytesSent");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_BytesSent = strtoull(jsonItem->valuestring, NULL, 10);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tBytesSent: %llu\n", (unsigned long long)link_data->cli_BytesSent));
-      }
-
-      /* BytesReceived */
-      jsonItem = cJSON_GetObjectItem(link, "BytesReceived");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_BytesReceived = strtoull(jsonItem->valuestring, NULL, 10);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tBytesReceived: %llu\n", (unsigned long long)link_data->cli_BytesReceived));
-      }
-
-      /* PacketsSent */
-      jsonItem = cJSON_GetObjectItem(link, "PacketsSent");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_PacketsSent = strtoull(jsonItem->valuestring, NULL, 10);
-      }
-
-      /* PacketsRecieved */
-      jsonItem = cJSON_GetObjectItem(link, "PacketsRecieved");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_PacketsReceived = strtoull(jsonItem->valuestring, NULL, 10);
-      }
-
-      /* Errors */
-      jsonItem = cJSON_GetObjectItem(link, "Errors");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_Errors = atoi(jsonItem->valuestring);
-      }
-
-      /* RetransCount */
-      jsonItem = cJSON_GetObjectItem(link, "RetransCount");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_RetransCount = atoi(jsonItem->valuestring);
-      }
-
-      /* Acknowledgements */
-      jsonItem = cJSON_GetObjectItem(link, "Acknowledgements");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_DataFramesSentAck = strtoull(jsonItem->valuestring, NULL, 10);
-      }
-
-      /* SignalStrength */
-      jsonItem = cJSON_GetObjectItem(link, "SignalStrength");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_SignalStrength = atoi(jsonItem->valuestring);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tSignalStrength: %d\n", link_data->cli_SignalStrength));
-      }
-
-      /* SNR */
-      jsonItem = cJSON_GetObjectItem(link, "SNR");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_SNR = atoi(jsonItem->valuestring);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tSNR: %d\n", link_data->cli_SNR));
-      }
-
-      /* OperatingStandard */
-      jsonItem = cJSON_GetObjectItem(link, "OperatingStandard");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        rc = strcpy_s(link_data->cli_OperatingStandard, sizeof(link_data->cli_OperatingStandard), jsonItem->valuestring);
-        ERR_CHK(rc);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tStandard: %s\n", link_data->cli_OperatingStandard));
-      }
-
-      /* OperatingChannelBandwidth */
-      jsonItem = cJSON_GetObjectItem(link, "OperatingChannelBandwidth");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        rc = strcpy_s(link_data->cli_OperatingChannelBandwidth,
-                      sizeof(link_data->cli_OperatingChannelBandwidth),
-                      jsonItem->valuestring);
-        ERR_CHK(rc);
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tBW: %s\n", link_data->cli_OperatingChannelBandwidth));
-      }
-
-      /* AuthenticationFailures */
-      jsonItem = cJSON_GetObjectItem(link, "AuthenticationFailures");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_AuthenticationFailures = atoi(jsonItem->valuestring);
-      }
-
-      /* AuthenticationState */
-      jsonItem = cJSON_GetObjectItem(link, "AuthenticationState");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_AuthenticationState = (strcmp(jsonItem->valuestring, "1") == 0);
-      }
-
-      /* Active */
-      jsonItem = cJSON_GetObjectItem(link, "Active");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_Active = (strcmp(jsonItem->valuestring, "1") == 0);
-      }
-
-      /* InterferenceSources */
-      jsonItem = cJSON_GetObjectItem(link, "InterferenceSources");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        rc = strcpy_s(link_data->cli_InterferenceSources,
-                      sizeof(link_data->cli_InterferenceSources),
-                      jsonItem->valuestring);
-        ERR_CHK(rc);
-      }
-
-      /* DataFramesSentNoAck */
-      jsonItem = cJSON_GetObjectItem(link, "DataFramesSentNoAck");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_DataFramesSentNoAck = strtoull(jsonItem->valuestring, NULL, 10);
-      }
-
-      /* RSSI */
-      jsonItem = cJSON_GetObjectItem(link, "RSSI");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_RSSI = atoi(jsonItem->valuestring);
-         CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tRSSI: %d\n", link_data->cli_RSSI));
-      }
-
-      /* MinRSSI */
-      jsonItem = cJSON_GetObjectItem(link, "MinRSSI");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_MinRSSI = atoi(jsonItem->valuestring);
-      }
-
-      /* MaxRSSI */
-      jsonItem = cJSON_GetObjectItem(link, "MaxRSSI");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_MaxRSSI = atoi(jsonItem->valuestring);
-      }
-
-      /* Disassociations */
-      jsonItem = cJSON_GetObjectItem(link, "Disassociations");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_Disassociations = atoi(jsonItem->valuestring);
-      }
-
-      /* Retransmissions */
-      jsonItem = cJSON_GetObjectItem(link, "Retransmissions");
-      if (jsonItem != NULL && jsonItem->valuestring != NULL)
-      {
-        link_data->cli_Retransmissions = atoi(jsonItem->valuestring);
-      }
-
-    }
-  }
-
-  CcspHarvesterTrace(("RDK_LOG_INFO, mlo_parseAssociatedDeviceDiagnostics: Successfully Parsed %u MLO devices\n", *assocDevCount));
-  return 0;
 }
 
 /**
