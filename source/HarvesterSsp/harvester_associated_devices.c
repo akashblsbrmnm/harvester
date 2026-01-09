@@ -48,6 +48,7 @@
 
 #define PUBLIC_WIFI_IDX_STARTS  4
 #define PUBLIC_WIFI_IDX_ENDS  5
+#define MLO_WIFI_IDX  18
 
 /* MAX SSID name buffer set as 512 bytes for qtn component*/
 #define STR_BUF_MAX 512
@@ -632,7 +633,32 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
             int i;
             for(i = 0; i < array_size; i++)
             {
-                harvester_dev_array[i].base_data = wifi_associated_dev_array[i];
+                memcpy(harvester_dev_array[i].cli_MACAddress, wifi_associated_dev_array[i].cli_MACAddress, 6);
+                memcpy(harvester_dev_array[i].cli_IPAddress, wifi_associated_dev_array[i].cli_IPAddress, 64);
+                memcpy(harvester_dev_array[i].cli_OperatingStandard, wifi_associated_dev_array[i].cli_OperatingStandard, 64);
+                memcpy(harvester_dev_array[i].cli_OperatingChannelBandwidth, wifi_associated_dev_array[i].cli_OperatingChannelBandwidth, 64);
+                memcpy(harvester_dev_array[i].cli_InterferenceSources, wifi_associated_dev_array[i].cli_InterferenceSources, 64);
+                harvester_dev_array[i].cli_LastDataDownlinkRate = wifi_associated_dev_array[i].cli_LastDataDownlinkRate;
+                harvester_dev_array[i].cli_LastDataUplinkRate = wifi_associated_dev_array[i].cli_LastDataUplinkRate;
+                harvester_dev_array[i].cli_SignalStrength = wifi_associated_dev_array[i].cli_SignalStrength;
+                harvester_dev_array[i].cli_BytesReceived = wifi_associated_dev_array[i].cli_BytesReceived;
+                harvester_dev_array[i].cli_BytesSent = wifi_associated_dev_array[i].cli_BytesSent;
+                harvester_dev_array[i].cli_PacketsReceived = wifi_associated_dev_array[i].cli_PacketsReceived;
+                harvester_dev_array[i].cli_PacketsSent = wifi_associated_dev_array[i].cli_PacketsSent;
+                harvester_dev_array[i].cli_RSSI = wifi_associated_dev_array[i].cli_RSSI;
+                harvester_dev_array[i].cli_MinRSSI = wifi_associated_dev_array[i].cli_MinRSSI;
+                harvester_dev_array[i].cli_MaxRSSI = wifi_associated_dev_array[i].cli_MaxRSSI;
+                harvester_dev_array[i].cli_Disassociations = wifi_associated_dev_array[i].cli_Disassociations;
+                harvester_dev_array[i].cli_AuthenticationFailures = wifi_associated_dev_array[i].cli_AuthenticationFailures;
+                harvester_dev_array[i].cli_Associations = wifi_associated_dev_array[i].cli_Associations;
+                harvester_dev_array[i].cli_AuthenticationState = wifi_associated_dev_array[i].cli_AuthenticationState;
+                harvester_dev_array[i].cli_Active = wifi_associated_dev_array[i].cli_Active;
+                harvester_dev_array[i].cli_Retransmissions = wifi_associated_dev_array[i].cli_Retransmissions;
+                harvester_dev_array[i].cli_SNR = wifi_associated_dev_array[i].cli_SNR;
+                harvester_dev_array[i].cli_DataFramesSentAck = wifi_associated_dev_array[i].cli_DataFramesSentAck;
+                harvester_dev_array[i].cli_DataFramesSentNoAck = wifi_associated_dev_array[i].cli_DataFramesSentNoAck;
+                harvester_dev_array[i].cli_Errors = wifi_associated_dev_array[i].cli_Errors;
+
                 /* MLO fields remain empty/default for legacy path */
                 memset(harvester_dev_array[i].mld_mac, 0, sizeof(harvester_dev_array[i].mld_mac));
                 harvester_dev_array[i].mld_enable = false;
@@ -659,12 +685,12 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
             }
 
             int j;
-            wifi_associated_dev_t *ps = NULL;
+            harvester_associated_dev_t *ps = NULL;
             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, ************Device Data Begins************* \n"));
             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Device Array Size is %d \n", array_size));
             for (i = 0; i < array_size; i++)
             {
-                ps = &harvester_dev_array[i].base_data;
+                harvester_associated_dev_t *ps = &harvester_dev_array[i];
                 CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Device[%d] DeviceMacAddress [", i));
                 if(consoleDebugEnable)
                 {
@@ -676,7 +702,11 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
 
                 CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] Device-IPAddress [%s] \n", i, (char*)&(ps->cli_IPAddress)));
                 CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] OperatingStandard [%s] \n", i, (char*)&(ps->cli_OperatingStandard)));
-                CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] OperatingChannelBandwidth [%s] \n", i, (char*)&(ps->cli_OperatingChannelBandwidth)));
+                Ccsace(("RDK_LOG_DEBUG,Device[%d] SNR %d \n", i, ps->cli_SNR));
+                CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] DataFramesSentAck %lu \n", i, ps->cli_DataFramesSentAck));
+                CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] DataFramesSentNoAck %lu \n", i, ps->cli_DataFramesSentNoAck));
+                CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] MinRSSI %d \n", i, ps->cli_MinRSSI));
+                CcspHarvesterConsolepHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] OperatingChannelBandwidth [%s] \n", i, (char*)&(ps->cli_OperatingChannelBandwidth)));
                 CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] AuthenticationState %d \n", i, ps->cli_AuthenticationState));
                 CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] LastDataDownlinkRate %d \n", i, ps->cli_LastDataDownlinkRate));
                 CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,Device[%d] LastDataUplinkRate %d \n", i, ps->cli_LastDataUplinkRate));
@@ -705,14 +735,13 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
     else
     {
         CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : wifi_getApAssociatedDeviceDiagnosticResult Return[%d] array_size [%d] \n",__FUNCTION__, ret, array_size));
-    } 
+    }
 
+    /* Additional MLO data collection if this is the MLO index */
 #ifdef RDK_ONEWIFI
-    /* Poll MLO TR181 if RFC enabled and ServiceType is not PUBLIC */
-    /* NOTE: We now merge MLO devices into the same associateddevicedata list using the extended struct */
-    if (get_HarvesterMLORfcEnable() && ServiceType != PUBLIC)
+    if (wlanIndex == MLO_WIFI_IDX)
     {
-        CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s: MLO RFC Enabled, polling wlanIndex %d\n", __FUNCTION__, wlanIndex));
+        CcspHarvesterTrace(("RDK_LOG_INFO, MLO index detected, fetching MLO data in addition to normal WiFi\n"));
         harvester_associated_dev_t *mlo_dev_array = NULL;
         uint32_t mlo_array_size = 0;
         char *mloVapIndex = NULL;
@@ -720,33 +749,23 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
         int mloRet = rbus_getMloAssociatedDeviceDiagnosticResult(wlanIndex+1, &mlo_dev_array, &mlo_array_size, &mloVapIndex);
         if (!mloRet && mlo_dev_array && mlo_array_size > 0)
         {
-            CcspHarvesterTrace(("RDK_LOG_INFO, MLO devices found: %d for wlanIndex %d\n", mlo_array_size, wlanIndex));
-            struct associateddevicedata **headnode = NULL;
-            if (ServiceType == PUBLIC)
-            {
-                headnode = (struct associateddevicedata **)headnodepublic;
-                add_to_list((struct associateddevicedata **)&headnode, pSsid, mlo_array_size, mlo_dev_array, (char*)&freqband, channel, (char*)&interfaceMAC);
-                headnodepublic = (struct associateddevicedata *)headnode;
-            }
-            else
-            {
-                headnode = (struct associateddevicedata **)headnodeprivate;
-                add_to_list((struct associateddevicedata **)&headnode, pSsid, mlo_array_size, mlo_dev_array, (char*)&freqband, channel, (char*)&interfaceMAC);
-                headnodeprivate = (struct associateddevicedata *)headnode;
-            }
-             /* add_to_list takes ownership of mlo_dev_array */
+            CcspHarvesterTrace(("RDK_LOG_INFO, MLO devices found: %d\n", mlo_array_size));
+            
+            struct associateddevicedata **headnode = (struct associateddevicedata **)headnodeprivate;
+            add_to_list((struct associateddevicedata **)&headnode, "MLO", mlo_array_size, mlo_dev_array, (char*)&freqband, channel, (char*)&interfaceMAC);
+            headnodeprivate = (struct associateddevicedata *)headnode;
+            
+            CcspHarvesterTrace(("RDK_LOG_INFO, MLO data added to linked list\n"));
         }
         else
         {
-             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : rbus_getMloAssociatedDeviceDiagnosticResult Return[%d] array_size [%d] \n", __FUNCTION__, mloRet, mlo_array_size));
+            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : rbus_getMloAssociatedDeviceDiagnosticResult Return[%d] array_size [%d] \n", __FUNCTION__, mloRet, mlo_array_size));
         }
         if (mloVapIndex) free(mloVapIndex);
     }
-    else
-    {
-        CcspHarvesterTrace(("RDK_LOG_INFO, Harvester MLO RfcEnable is false \n"));
-    }
-#endif
+#endif 
+
+
 
     CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT \n", __FUNCTION__ ));
     return ret;
@@ -827,6 +846,7 @@ void* StartAssociatedDeviceHarvesting( void *arg )
                 }
             }
 
+
 #if !defined(_SR213_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_) /* Disable Xfinity Hotspot SSID scan for HUB6/HUB4. */
 	int fd = 0;
 	token_t token;
@@ -868,6 +888,19 @@ void* StartAssociatedDeviceHarvesting( void *arg )
             }
         }
 #endif // !_SR213_PRODUCT_REQ_ && !_HUB4_PRODUCT_REQ_
+
+#ifdef RDK_ONEWIFI
+            /* Poll MLO data if RFC is enabled (after PRIVATE and PUBLIC WiFi) */
+            if (get_HarvesterMLORfcEnable())
+            {
+                CcspHarvesterTrace(("RDK_LOG_INFO, MLO RFC Enabled, polling MLO index %d\n", MLO_WIFI_IDX));
+                ret = GetWiFiApGetAssocDevicesData(PRIVATE, MLO_WIFI_IDX, "MLO");
+                if (ret)
+                {
+                    CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s : GetWiFiApGetAssocDevicesData returned error [%d] for MLO\n", __FUNCTION__, ret));
+                }
+            }
+#endif
 
             currentReportingPeriod = currentReportingPeriod + GetIDWPollingPeriod();
             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Before Sending to WebPA and AVRO currentReportingPeriod [%ld] GetIDWReportingPeriod()[%ld]  \n", currentReportingPeriod, GetIDWReportingPeriod()));

@@ -21,6 +21,7 @@
 #define _HARVESTER_AVRO_H
 
 #include <sys/time.h>
+#include <stdint.h>
 #include <wifi_hal.h>
 #include <pthread.h>
 #include <pthread.h>
@@ -36,7 +37,32 @@
 #define MAC_STR_LEN 18
 
 typedef struct _harvester_associated_dev_t {
-    wifi_associated_dev_t base_data;
+    unsigned char cli_MACAddress[6];
+    char cli_IPAddress[64];
+    char cli_OperatingStandard[64];
+    char cli_OperatingChannelBandwidth[64];
+    char cli_InterferenceSources[64];
+    uint32_t cli_LastDataDownlinkRate;
+    uint32_t cli_LastDataUplinkRate;
+    int32_t cli_SignalStrength;
+    uint64_t cli_BytesReceived;
+    uint64_t cli_BytesSent;
+    uint64_t cli_PacketsReceived;
+    uint64_t cli_PacketsSent;
+    int32_t cli_RSSI;
+    int32_t cli_MinRSSI;
+    int32_t cli_MaxRSSI;
+    uint32_t cli_Disassociations;
+    uint32_t cli_AuthenticationFailures;
+    uint32_t cli_Associations; // In case needed
+    bool cli_AuthenticationState;
+    bool cli_Active;
+    uint32_t cli_Retransmissions;
+    int32_t cli_SNR;
+    uint64_t cli_DataFramesSentAck;
+    uint64_t cli_DataFramesSentNoAck;
+    uint32_t cli_Errors;
+    // MLO fields
     char mld_mac[MAC_STR_LEN];
     bool mld_enable;
     char vap_index[32];

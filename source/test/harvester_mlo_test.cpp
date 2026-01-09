@@ -99,50 +99,7 @@ TEST_F(HarvesterMLOTest, MLO_RfcEnable_SetFail) {
     EXPECT_EQ(get_HarvesterMLORfcEnable(), true);
 }
 
-TEST_F(HarvesterMLOTest, AddToMloList_Success) {
-    struct mlo_associated_device_data *head = NULL;
-    mlo_assoc_dev_t *devData = (mlo_assoc_dev_t *)calloc(1, sizeof(mlo_assoc_dev_t));
-    
-    add_to_mlo_list(&head, (char*)"1", 1, devData);
 
-    ASSERT_NE(head, nullptr);
-    EXPECT_STREQ(head->vapIndex, "1");
-    EXPECT_EQ(head->numAssocDevices, 1);
-    EXPECT_EQ(head->devicedata, devData);
-    EXPECT_EQ(head->next, nullptr);
-
-    delete_mlo_list(head);
-}
-
-TEST_F(HarvesterMLOTest, AddToMloList_Append) {
-    struct mlo_associated_device_data *head = NULL;
-    mlo_assoc_dev_t *devData1 = (mlo_assoc_dev_t *)calloc(1, sizeof(mlo_assoc_dev_t));
-    mlo_assoc_dev_t *devData2 = (mlo_assoc_dev_t *)calloc(1, sizeof(mlo_assoc_dev_t));
-
-    add_to_mlo_list(&head, (char*)"1", 1, devData1);
-    add_to_mlo_list(&head, (char*)"2", 2, devData2);
-
-    ASSERT_NE(head, nullptr);
-    ASSERT_NE(head->next, nullptr);
-    EXPECT_STREQ(head->next->vapIndex, "2");
-    EXPECT_EQ(head->next->numAssocDevices, 2);
-
-    delete_mlo_list(head);
-}
-
-TEST_F(HarvesterMLOTest, DeleteMloList_Null) {
-    delete_mlo_list(NULL);
-}
-
-TEST_F(HarvesterMLOTest, PrintMloList_Valid) {
-    struct mlo_associated_device_data *head = NULL;
-    mlo_assoc_dev_t *devData = (mlo_assoc_dev_t *)calloc(1, sizeof(mlo_assoc_dev_t));
-    add_to_mlo_list(&head, (char*)"1", 1, devData);
-
-    print_mlo_list(head);
-
-    delete_mlo_list(head);
-}
 
 TEST_F(HarvesterMLOTest, MLO_Rfc_Handler_Test) {
     rbusDataElement_t* capturedElements = NULL;
@@ -264,7 +221,7 @@ TEST_F(HarvesterMLOTest, MLO_Rfc_Uninit_NullHandle) {
 TEST_F(HarvesterMLOTest, Parse_NullInputs) {
     uint32_t count = 0;
     char *vap = NULL;
-    mlo_assoc_dev_t *dev = NULL;
+    harvester_associated_dev_t *dev = NULL;
     
     EXPECT_EQ(mlo_parseAssociatedDeviceDiagnostics(NULL, &dev, &count, &vap), 1);
 }
@@ -273,7 +230,7 @@ TEST_F(HarvesterMLOTest, Parse_NoAssociatedClientsDiagnostics) {
     cJSON *json = cJSON_CreateObject();
     uint32_t count = 0;
     char *vap = NULL;
-    mlo_assoc_dev_t *dev = NULL;
+    harvester_associated_dev_t *dev = NULL;
 
     EXPECT_CALL(*g_cjsonMock, cJSON_GetObjectItem(_, testing::StrEq("AssociatedClientsDiagnostics")))
         .WillOnce(Return((cJSON*)NULL));

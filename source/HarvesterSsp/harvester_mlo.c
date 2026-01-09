@@ -413,7 +413,6 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, harvester_associated_dev
             
             // Extract Link Data directly from 'client' (which in this case is a link entry)
             harvester_associated_dev_t *dst = &dev[current_idx];
-            wifi_associated_dev_t *base = &dst->base_data;
             
             // MLD Context
             if (currentVapIndex)
@@ -441,9 +440,9 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, harvester_associated_dev
             jsonItem = cJSON_GetObjectItem(client, "MAC");
             if (jsonItem != NULL && jsonItem->valuestring != NULL) {
                 sscanf(jsonItem->valuestring, "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
-                       &base->cli_MACAddress[0], &base->cli_MACAddress[1],
-                       &base->cli_MACAddress[2], &base->cli_MACAddress[3],
-                       &base->cli_MACAddress[4], &base->cli_MACAddress[5]);
+                       &dst->cli_MACAddress[0], &dst->cli_MACAddress[1],
+                       &dst->cli_MACAddress[2], &dst->cli_MACAddress[3],
+                       &dst->cli_MACAddress[4], &dst->cli_MACAddress[5]);
             }
 
             jsonItem = cJSON_GetObjectItem(client, "Band");
@@ -455,28 +454,28 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, harvester_associated_dev
             
             // Other Metrics
             jsonItem = cJSON_GetObjectItem(client, "RSSI");
-            if (jsonItem) base->cli_RSSI = atoi(jsonItem->valuestring);
+            if (jsonItem) dst->cli_RSSI = atoi(jsonItem->valuestring);
             
             jsonItem = cJSON_GetObjectItem(client, "SignalStrength");
-            if (jsonItem) base->cli_SignalStrength = atoi(jsonItem->valuestring);
+            if (jsonItem) dst->cli_SignalStrength = atoi(jsonItem->valuestring);
             
             jsonItem = cJSON_GetObjectItem(client, "SNR");
-            if (jsonItem) base->cli_SNR = atoi(jsonItem->valuestring);
+            if (jsonItem) dst->cli_SNR = atoi(jsonItem->valuestring);
             
             jsonItem = cJSON_GetObjectItem(client, "BytesSent");
-            if (jsonItem) base->cli_BytesSent = strtoull(jsonItem->valuestring, NULL, 10);
+            if (jsonItem) dst->cli_BytesSent = strtoull(jsonItem->valuestring, NULL, 10);
             
             jsonItem = cJSON_GetObjectItem(client, "BytesReceived");
-            if (jsonItem) base->cli_BytesReceived = strtoull(jsonItem->valuestring, NULL, 10);
+            if (jsonItem) dst->cli_BytesReceived = strtoull(jsonItem->valuestring, NULL, 10);
 
             jsonItem = cJSON_GetObjectItem(client, "PacketsSent");
-            if (jsonItem) base->cli_PacketsSent = strtoull(jsonItem->valuestring, NULL, 10);
+            if (jsonItem) dst->cli_PacketsSent = strtoull(jsonItem->valuestring, NULL, 10);
 
             jsonItem = cJSON_GetObjectItem(client, "PacketsRecieved");
-            if (jsonItem) base->cli_PacketsReceived = strtoull(jsonItem->valuestring, NULL, 10);
+            if (jsonItem) dst->cli_PacketsReceived = strtoull(jsonItem->valuestring, NULL, 10);
 
             jsonItem = cJSON_GetObjectItem(client, "Errors");
-            if (jsonItem) base->cli_Errors = atoi(jsonItem->valuestring);
+            if (jsonItem) dst->cli_Errors = atoi(jsonItem->valuestring);
 
             jsonItem = cJSON_GetObjectItem(client, "RetransCount"); // Not standard in wifi_associated_dev_t but was in MLO struct. 
                                                                     // Check if base has it. Hal dev_t sometimes has X_COMCAST_ stuff.
@@ -484,45 +483,45 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, harvester_associated_dev
                                                                     // Previous code in harvester_associated_devices.c debug prints showed:
                                                                     // cli_Retransmissions.
             jsonItem = cJSON_GetObjectItem(client, "Retransmissions");
-            if (jsonItem) base->cli_Retransmissions = atoi(jsonItem->valuestring);
+            if (jsonItem) dst->cli_Retransmissions = atoi(jsonItem->valuestring);
             
             jsonItem = cJSON_GetObjectItem(client, "AuthenticationFailures");
-            if (jsonItem) base->cli_AuthenticationFailures = atoi(jsonItem->valuestring);
+            if (jsonItem) dst->cli_AuthenticationFailures = atoi(jsonItem->valuestring);
 
             jsonItem = cJSON_GetObjectItem(client, "AuthenticationState");
-             if (jsonItem) base->cli_AuthenticationState = (atoi(jsonItem->valuestring) == 1);
+             if (jsonItem) dst->cli_AuthenticationState = (atoi(jsonItem->valuestring) == 1);
             
             jsonItem = cJSON_GetObjectItem(client, "Active");
-             if (jsonItem) base->cli_Active = (atoi(jsonItem->valuestring) == 1);
+             if (jsonItem) dst->cli_Active = (atoi(jsonItem->valuestring) == 1);
             
             jsonItem = cJSON_GetObjectItem(client, "Disassociations");
-            if (jsonItem) base->cli_Disassociations = atoi(jsonItem->valuestring);
+            if (jsonItem) dst->cli_Disassociations = atoi(jsonItem->valuestring);
 
             jsonItem = cJSON_GetObjectItem(client, "OperatingStandard");
             if (jsonItem && jsonItem->valuestring) {
-                rc = strcpy_s(base->cli_OperatingStandard, sizeof(base->cli_OperatingStandard), jsonItem->valuestring);
+                rc = strcpy_s(dst->cli_OperatingStandard, sizeof(dst->cli_OperatingStandard), jsonItem->valuestring);
                 ERR_CHK(rc);
             }
             
             jsonItem = cJSON_GetObjectItem(client, "OperatingChannelBandwidth");
             if (jsonItem && jsonItem->valuestring) {
-                rc = strcpy_s(base->cli_OperatingChannelBandwidth, sizeof(base->cli_OperatingChannelBandwidth), jsonItem->valuestring);
+                rc = strcpy_s(dst->cli_OperatingChannelBandwidth, sizeof(dst->cli_OperatingChannelBandwidth), jsonItem->valuestring);
                 ERR_CHK(rc);
             }
 
              jsonItem = cJSON_GetObjectItem(client, "InterferenceSources");
             if (jsonItem && jsonItem->valuestring) {
-                rc = strcpy_s(base->cli_InterferenceSources, sizeof(base->cli_InterferenceSources), jsonItem->valuestring);
+                rc = strcpy_s(dst->cli_InterferenceSources, sizeof(dst->cli_InterferenceSources), jsonItem->valuestring);
                 ERR_CHK(rc);
             }
 
             jsonItem = cJSON_GetObjectItem(client, "DataFramesSentNoAck");
-            if (jsonItem) base->cli_DataFramesSentNoAck = strtoull(jsonItem->valuestring, NULL, 10);
+            if (jsonItem) dst->cli_DataFramesSentNoAck = strtoull(jsonItem->valuestring, NULL, 10);
             
             jsonItem = cJSON_GetObjectItem(client, "DataFramesSentAck"); // "Acknowledgements" in JSON? 
             // User JSON has "Acknowledgements": "170000".
              jsonItem = cJSON_GetObjectItem(client, "Acknowledgements");
-            if (jsonItem) base->cli_DataFramesSentAck = strtoull(jsonItem->valuestring, NULL, 10);
+            if (jsonItem) dst->cli_DataFramesSentAck = strtoull(jsonItem->valuestring, NULL, 10);
 
             current_idx++;
         }
@@ -532,170 +531,4 @@ int mlo_parseAssociatedDeviceDiagnostics(void *jsonVal, harvester_associated_dev
     *assocDevCount = totalLinks;
     
     CcspHarvesterTrace(("RDK_LOG_INFO, mlo_parseAssociatedDeviceDiagnostics: Successfully Parsed %u MLO Links\n", totalLinks));
-    return 0;
 }
-
-/**
- * @brief Add MLO device data to linked list
- */
-void add_to_mlo_list(struct mlo_associated_device_data **headnode,
-                     char *vapIndex, unsigned long devices,
-                     mlo_assoc_dev_t *devicedata) {
-  struct mlo_associated_device_data *ptr = NULL;
-  struct mlo_associated_device_data *curr = NULL;
-  errno_t rc = -1;
-
-  CcspHarvesterConsoleTrace(
-      ("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
-
-  if (headnode == NULL || vapIndex == NULL) {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, add_to_mlo_list: NULL parameter\n"));
-    return;
-  }
-
-  ptr = (struct mlo_associated_device_data *)malloc(sizeof(struct mlo_associated_device_data));
-  if (ptr == NULL)
-  {
-    CcspHarvesterTrace(("RDK_LOG_ERROR, add_to_mlo_list: Memory allocation failed\n"));
-    return;
-  }
-
-  rc = memset_s(ptr, sizeof(struct mlo_associated_device_data), 0, sizeof(struct mlo_associated_device_data));
-  ERR_CHK(rc);
-
-  ptr->vapIndex = strdup(vapIndex);
-  ptr->numAssocDevices = devices;
-  ptr->devicedata = devicedata;
-  ptr->next = NULL;
-  gettimeofday(&(ptr->timestamp), NULL);
-
-  if (*headnode == NULL)
-  {
-    *headnode = ptr;
-  }
-  else
-  {
-    curr = *headnode;
-    while (curr->next != NULL)
-    {
-      curr = curr->next;
-    }
-    curr->next = ptr;
-  }
-
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
-}
-
-/**
- * @brief Print MLO linked list for debugging
- */
-void print_mlo_list(struct mlo_associated_device_data *head)
-{
-  struct mlo_associated_device_data *ptr = head;
-  int nodeNum = 0;
-
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
-
-  while (ptr != NULL)
-  {
-    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, MLO Node[%d]: VapIndex=%s "
-                               "NumDevices=%lu Timestamp=%ld\n",
-                               nodeNum, ptr->vapIndex ? ptr->vapIndex : "NULL",
-                               ptr->numAssocDevices,
-                               (long)ptr->timestamp.tv_sec));
-    ptr = ptr->next;
-    nodeNum++;
-  }
-
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
-}
-
-/**
- * @brief Print full MLO linked list details for debugging
- */
-void print_mlo_list_full(struct mlo_associated_device_data *head)
-{
-  struct mlo_associated_device_data *ptr = head;
-  int nodeNum = 0;
-  int i = 0;
-  int j = 0;
-
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
-
-  while (ptr != NULL)
-  {
-    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, MLO Node[%d]: VapIndex=%s "
-                               "NumDevices=%lu Timestamp=%ld\n",
-                               nodeNum, ptr->vapIndex ? ptr->vapIndex : "NULL",
-                               ptr->numAssocDevices,
-                               (long)ptr->timestamp.tv_sec));
-
-    if (ptr->devicedata != NULL)
-    {
-        for (i = 0; i < (int)ptr->numAssocDevices; i++)
-        {
-            mlo_assoc_dev_t *dev = &ptr->devicedata[i];
-            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,   Device[%d] MAC: %02x:%02x:%02x:%02x:%02x:%02x NumLinks: %d\n",
-                   i, dev->cli_MACAddress[0], dev->cli_MACAddress[1],
-                   dev->cli_MACAddress[2], dev->cli_MACAddress[3],
-                   dev->cli_MACAddress[4], dev->cli_MACAddress[5],
-                   dev->numLinks));
-
-            for (j = 0; j < MAX_MLO_LINKS; j++)
-            {
-                mlo_link_data_t *link = &dev->links[j];
-                /* Print link only if band is populated */
-                if (link->band[0] != '\0')
-                {
-                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,     Link[%d] Band: %s Active: %d Std: %s BW: %s RSSI: %d SNR: %d\n",
-                        j, link->band, link->cli_Active, link->cli_OperatingStandard,
-                        link->cli_OperatingChannelBandwidth, link->cli_RSSI, link->cli_SNR));
-                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,       BytesSent: %llu BytesReceived: %llu PacketsSent: %llu PacketsReceived: %llu\n",
-                        (unsigned long long)link->cli_BytesSent, (unsigned long long)link->cli_BytesReceived,
-                        (unsigned long long)link->cli_PacketsSent, (unsigned long long)link->cli_PacketsReceived));
-                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,       Errors: %u Retrans: %u Retransmission: %u Disassoc: %u AuthFail: %u\n",
-                        link->cli_Errors, link->cli_RetransCount, link->cli_Retransmissions,
-                        link->cli_Disassociations, link->cli_AuthenticationFailures));
-                    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG,       Downlink: %u Uplink: %u SignalStrength: %d AssocLink: %d\n",
-                        link->cli_LastDataDownlinkRate, link->cli_LastDataUplinkRate, link->cli_SignalStrength, link->associationLink));
-                }
-            }
-        }
-    }
-
-    ptr = ptr->next;
-    nodeNum++;
-  }
-
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
-}
-
-/**
- * @brief Delete and free MLO linked list
- */
-void delete_mlo_list(struct mlo_associated_device_data *head)
-{
-  struct mlo_associated_device_data *curr = head;
-  struct mlo_associated_device_data *next = NULL;
-
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__));
-
-  while (curr != NULL)
-  {
-    next = curr->next;
-    CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Deleting MLO Node VapIndex=%s\n",   curr->vapIndex ? curr->vapIndex : "NULL"));
-    if (curr->vapIndex != NULL)
-    {
-      free(curr->vapIndex);
-    }
-    if (curr->devicedata != NULL)
-    {
-      free(curr->devicedata);
-    }
-    free(curr);
-    curr = next;
-  }
-
-  CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT\n", __FUNCTION__));
-}
-
