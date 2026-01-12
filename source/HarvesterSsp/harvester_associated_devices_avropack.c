@@ -436,10 +436,11 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
   strsize6GHZ = strlen("6GHz");
 #endif
 
-  for (i = 0; i < numElements; i++)
+   for (i = 0; i < numElements; i++)
   {
-    for (j = 0, ps = ptr->devicedata; j < ptr->numAssocDevices; j++, ps++)
-    {
+    for (j = 0; j < ptr->numAssocDevices; j++)
+   {
+      ps = &ptr->devicedata[j]; // Always use devicedata now
 
       CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Current Link List Ptr = [0x%lx], numDevices = %d\n", (ulong)ptr, numDevices ));
       CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tDevice entry #: %d\n", i + 1));
@@ -447,8 +448,6 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       //Append a DeviceReport item to array
       avro_value_append(&adrField, &dr, NULL);
       CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, \tInterface Report\tType: %d\n", avro_value_get_type(&dr)));
-
-      //data array block
 
       //device_mac - fixed 6 bytes
       avro_value_get_by_name(&dr, "device_id", &drField, NULL);
@@ -586,7 +585,7 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       }
       if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
 
-      // frequency band
+       // frequency band
       avro_value_get_by_name(&dr, "interface_parameters", &drField, NULL);
       if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
       avro_value_set_branch(&drField, 1, &optional);
@@ -594,8 +593,14 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
       avro_value_set_branch(&drField, 1, &optional);
       CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band\tType: %d\n", avro_value_get_type(&optional)));
-      //Patch HAL values if necessary
-      rc = strcmp_s("2.4GHz", strsize2_4GHZ, ptr->radioOperatingFrequencyBand, &ind);
+
+      char *bandToUse = ptr->radioOperatingFrequencyBand;
+      if (ptr->frequency_band[0] != '\0') {
+          bandToUse = ptr->frequency_band;
+      }
+
+      // Patch HAL values if necessary
+      rc = strcmp_s("2.4GHz", strsize2_4GHZ, bandToUse, &ind);
       ERR_CHK(rc);
       if((rc == EOK) && (!ind))
       {
@@ -604,7 +609,7 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       }
       else
       {
-         rc = strcmp_s("5GHz", strsize5GHZ, ptr->radioOperatingFrequencyBand, &ind);
+         rc = strcmp_s("5GHz", strsize5GHZ, bandToUse, &ind);
          ERR_CHK(rc);
          if((rc == EOK) && (!ind))
          {
@@ -614,13 +619,13 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
 #ifndef WIFI_HAL_VERSION_3
          else
          {
-            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", ptr->radioOperatingFrequencyBand ));
-            avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), ptr->radioOperatingFrequencyBand));
+            CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", bandToUse ));
+            avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), bandToUse));
          }
 #else
          else
          {
-            rc = strcmp_s("6GHz", strsize6GHZ, ptr->radioOperatingFrequencyBand, &ind);
+            rc = strcmp_s("6GHz", strsize6GHZ, bandToUse, &ind);
             ERR_CHK(rc);
             if((rc == EOK) && (!ind))
             {
@@ -629,13 +634,12 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
             }
             else
             {
-               CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", ptr->radioOperatingFrequencyBand ));
-               avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), ptr->radioOperatingFrequencyBand));
+               CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, frequency_band = \"%s\"\n", bandToUse ));
+               avro_value_set_enum(&optional, avro_schema_enum_get_by_name(avro_value_get_schema(&optional), bandToUse));
             }
          }
 #endif
       }
-	  
       if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
 
       // channel #
@@ -661,6 +665,18 @@ void harvester_report_associateddevices(struct associateddevicedata *head, char*
       CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, ssid\tType: %d\n", avro_value_get_type(&optional)));
       avro_value_set_string(&optional, ptr->sSidName);
       if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+
+      if(ptr->mld_enable)
+      {
+          avro_value_get_by_name(&dr, "interface_parameters", &drField, NULL);
+          if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+          avro_value_set_branch(&drField, 1, &optional);
+          avro_value_get_by_name(&optional, "mld_enable", &drField, NULL);
+          if ( CHK_AVRO_ERR ) CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, %s\n", avro_strerror()));
+          avro_value_set_branch(&drField, 1, &optional);
+          avro_value_set_boolean(&optional, ptr->mld_enable);
+          CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, mld_enable serialized: %d\n", ptr->mld_enable));
+      }
 
       //interface metrics block
 

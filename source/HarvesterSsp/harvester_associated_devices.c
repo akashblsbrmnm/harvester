@@ -40,6 +40,7 @@
 #include <sysevent/sysevent.h>
 #ifdef RDK_ONEWIFI
 #include "harvester_rbus_api.h"
+#include "harvester_mlo.h"
 #endif
 
 #define PUBLIC  0
@@ -47,6 +48,7 @@
 
 #define PUBLIC_WIFI_IDX_STARTS  4
 #define PUBLIC_WIFI_IDX_ENDS  5
+#define MLO_WIFI_IDX  18
 
 /* MAX SSID name buffer set as 512 bytes for qtn component*/
 #define STR_BUF_MAX 512
@@ -78,7 +80,7 @@ void* StartAssociatedDeviceHarvesting( void *arg );
 #if !defined(UTC_ENABLE_ATOM) && !defined(_HUB4_PRODUCT_REQ_)
 static void _syscmd(FILE *f, char *retBuf, int retBufSize);
 #endif
-void add_to_list(struct associateddevicedata **headnode, char* ssid, ULONG devices, wifi_associated_dev_t* devicedata, char* freqband, ULONG channel, char* intfcmacid);
+void add_to_list(struct associateddevicedata **headnode, char* ssid, ULONG devices, wifi_associated_dev_t* devicedata, bool mld_enable, char* freqband, ULONG channel, char* intfcmacid);
 void print_list( struct associateddevicedata *head );
 void delete_list( struct associateddevicedata *head );
 int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid);
@@ -390,7 +392,7 @@ int getTimeOffsetFromUtc()
 #endif
 
 
-void add_to_list(struct associateddevicedata **headnode, char* ssid, ULONG devices, wifi_associated_dev_t* devicedata, char* freqband, ULONG channel, char* intfcmacid)
+void add_to_list(struct associateddevicedata **headnode, char* ssid, ULONG devices, wifi_associated_dev_t* devicedata, bool mld_enable, char* freqband, ULONG channel, char* intfcmacid)
 {
     errno_t rc = -1;
     CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s ENTER\n", __FUNCTION__ ));
@@ -411,7 +413,15 @@ void add_to_list(struct associateddevicedata **headnode, char* ssid, ULONG devic
         ptr->bssid = strdup(intfcmacid);
         ptr->numAssocDevices = devices;
         ptr->devicedata = devicedata;
-        ptr->radioOperatingFrequencyBand = strdup(freqband); //Possible value 2.4Ghz and 5.0 Ghz
+
+        // MLO fields
+        ptr->mld_enable = mld_enable;
+        if(freqband) {
+           rc = strcpy_s(ptr->frequency_band, sizeof(ptr->frequency_band), freqband);
+           ERR_CHK(rc);
+        }
+
+        ptr->radioOperatingFrequencyBand = strdup(freqband ? freqband : ""); //Possible value 2.4Ghz and 5.0 Ghz
         ptr->radioChannel = channel;
         ptr->next = NULL;
         gettimeofday(&(ptr->timestamp), NULL);
@@ -470,6 +480,9 @@ void print_list( struct associateddevicedata *headnode)
     while (ptr != NULL)
     {
         CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : Head Ptr [%lx] TimeStamp[%d] for Node[%d] with SSID[%s] \n", __FUNCTION__ ,(ulong)ptr, (int)ptr->timestamp.tv_sec, z, ptr->sSidName));
+        if (ptr->mld_enable) {
+             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : Node is MLO enabled\n", __FUNCTION__));
+        }
         ptr = ptr->next;
         z++;
     }
@@ -477,6 +490,7 @@ void print_list( struct associateddevicedata *headnode)
     return;
 }
 
+/* Function to delete the entire linked list */
 /* Function to delete the entire linked list */
 void delete_list(  struct associateddevicedata *headnode )
 {
@@ -626,13 +640,13 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
         if ( ServiceType == PUBLIC )
         {
             headnode = (struct associateddevicedata **)headnodepublic;
-            add_to_list((struct associateddevicedata **)&headnode,  pSsid, array_size, wifi_associated_dev_array, (char*)&freqband, channel, (char*)&interfaceMAC);
+            add_to_list((struct associateddevicedata **)&headnode,  pSsid, array_size, wifi_associated_dev_array, NULL, (char*)&freqband, channel, (char*)&interfaceMAC);
             headnodepublic = (struct associateddevicedata *)headnode; //Important - headnode only change when it is a NEW list
         }
         else
         {
             headnode = (struct associateddevicedata **)headnodeprivate;
-            add_to_list((struct associateddevicedata **)&headnode, pSsid, array_size, wifi_associated_dev_array, (char*)&freqband, channel, (char*)&interfaceMAC);
+            add_to_list((struct associateddevicedata **)&headnode, pSsid, array_size, wifi_associated_dev_array, NULL, (char*)&freqband, channel, (char*)&interfaceMAC);
             headnodeprivate = (struct associateddevicedata *)headnode; //Important - headnode only change when it is a NEW list
         }
 
@@ -682,7 +696,59 @@ int GetWiFiApGetAssocDevicesData(int ServiceType, int wlanIndex, char* pSsid)
     else
     {
         CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s : wifi_getApAssociatedDeviceDiagnosticResult Return[%d] array_size [%d] \n",__FUNCTION__, ret, array_size));
-    } 
+    }
+
+    /* Additional MLO data collection if this is the MLO index */
+/* Additional MLO data collection if this is the MLO index */
+#ifdef RDK_ONEWIFI
+    if (wlanIndex == MLO_WIFI_IDX)
+    {
+        CcspHarvesterTrace(("RDK_LOG_INFO, MLO index detected, fetching MLO data in addition to normal WiFi\n"));
+        wifi_associated_dev_t *mlo_dev_array = NULL;
+        bool *mld_enable_list = NULL;
+        char **band_list = NULL;
+        uint32_t mlo_array_size = 0;
+        char *mloVapIndex = NULL;
+
+        int mloRet = rbus_getMloAssociatedDeviceDiagnosticResult(wlanIndex+1, &mlo_dev_array, &mld_enable_list, &band_list, &mlo_array_size, &mloVapIndex);
+        if (!mloRet && mlo_dev_array && mlo_array_size > 0 && mld_enable_list && band_list)
+        {
+            CcspHarvesterTrace(("RDK_LOG_INFO, MLO devices found: %d\n", mlo_array_size));
+            
+            struct associateddevicedata **headnode = (struct associateddevicedata **)headnodeprivate;
+
+            for(uint32_t i=0; i < mlo_array_size; i++)
+            {
+               // Add each MLO device as a single node
+               add_to_list((struct associateddevicedata **)&headnode, "MLO", 1, &mlo_dev_array[i],
+                           mld_enable_list[i], band_list[i], channel, (char*)&interfaceMAC);
+            }
+ 
+            headnodeprivate = (struct associateddevicedata *)headnode;
+            
+            CcspHarvesterTrace(("RDK_LOG_INFO, MLO data added to linked list\n"));
+        }
+
+        // Handling the Freeing of arrays returned by RBUS
+        if(mlo_dev_array)
+        {
+             // We need to free this because we made deep copies for the list
+             free(mlo_dev_array);
+        }
+
+        if(mld_enable_list) free(mld_enable_list);
+
+        if(band_list) {
+            for(uint32_t b=0; b < mlo_array_size; b++) {
+                if(band_list[b]) free(band_list[b]);
+            }
+            free(band_list);
+        }
+        if (mloVapIndex) free(mloVapIndex);
+    }
+#endif 
+
+
 
     CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Harvester %s EXIT \n", __FUNCTION__ ));
     return ret;
@@ -804,6 +870,19 @@ void* StartAssociatedDeviceHarvesting( void *arg )
             }
         }
 #endif // !_SR213_PRODUCT_REQ_ && !_HUB4_PRODUCT_REQ_
+
+#ifdef RDK_ONEWIFI
+            /* Poll MLO data if RFC is enabled (after PRIVATE and PUBLIC WiFi) */
+            if (get_HarvesterMLORfcEnable())
+            {
+                CcspHarvesterTrace(("RDK_LOG_INFO, MLO RFC Enabled, polling MLO index %d\n", MLO_WIFI_IDX));
+                ret = GetWiFiApGetAssocDevicesData(PRIVATE, MLO_WIFI_IDX, "MLO");
+                if (ret)
+                {
+                    CcspHarvesterTrace(("RDK_LOG_ERROR, Harvester %s : GetWiFiApGetAssocDevicesData returned error [%d] for MLO\n", __FUNCTION__, ret));
+                }
+            }
+#endif
 
             currentReportingPeriod = currentReportingPeriod + GetIDWPollingPeriod();
             CcspHarvesterConsoleTrace(("RDK_LOG_DEBUG, Before Sending to WebPA and AVRO currentReportingPeriod [%ld] GetIDWReportingPeriod()[%ld]  \n", currentReportingPeriod, GetIDWReportingPeriod()));
